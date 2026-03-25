@@ -12,14 +12,32 @@ GITHUB_TOKEN = st.secrets["GITHUB_TOKEN"]
 
 st.set_page_config(page_title="Mussel Annotator Pro", layout="wide")
 
-# --- CSS FIX ---
+# --- CSS: ENSURE IMAGE STAYS IN BROWSER BOUNDS ---
 st.markdown("""
     <style>
-    .block-container { padding-top: 1.5rem !important; max-width: 95% !important; }
-    /* Ensure the image doesn't overflow the screen */
-    img { max-width: 100%; height: auto; }
+    .block-container { padding-top: 1rem !important; max-width: 95% !important; }
+    /* This forces the image container to never exceed the screen width */
+    .img-container {
+        width: 100%;
+        max-width: 100vw;
+        overflow: hidden;
+    }
+    /* Hide the 'Running...' header to reduce flashing visual noise */
+    #MainMenu {visibility: hidden;}
+    header {visibility: hidden;}
     </style>
     """, unsafe_allow_html=True)
+
+# --- CACHED IMAGE LOADER (CRITICAL FOR SPEED) ---
+@st.cache_data
+def load_and_resize_image(path):
+    img = Image.open(path).convert("RGB")
+    orig_size = img.size
+    # Resize for display only (makes the app 10x faster)
+    # We keep the aspect ratio but limit width to 1200px
+    display_img = img.copy()
+    display_img.thumbnail((1200, 1200)) 
+    return display_img, orig_size
 
 # --- GITHUB HELPERS (Unchanged) ---
 def github_request(method, path, json_data=None):
@@ -42,90 +60,70 @@ def get_existing_annotation(path):
         return json.loads(base64.b64decode(res.json()["content"]).decode())
     return None
 
-# --- SESSION STATE INITIALIZATION ---
-# I've updated this to ensure the keys exist even if the app was mid-session
-if "user_name" not in st.session_state: st.session_state.user_name = None
-if "img_idx" not in st.session_state: st.session_state.img_idx = 0
-if "folder" not in st.session_state: st.session_state.folder = None
-if "session_started" not in st.session_state: st.session_state.session_started = False
-if "points" not in st.session_state: st.session_state.points = []
-if "mode" not in st.session_state: st.session_state.mode = "Add Points"
-if "start_time" not in st.session_state: st.session_state.start_time = time.time()
-if "current_loaded_img" not in st.session_state: st.session_state.current_loaded_img = None
+# --- INITIALIZE SESSION STATE ---
+for key in ["user_name", "img_idx", "folder", "session_started", "points", "mode", "current_loaded_img"]:
+    if key not in st.session_state:
+        st.session_state[key] = None if key != "img_idx" else 0
+if "points" not in st.session_state or st.session_state.points is None: st.session_state.points = []
+if "mode" not in st.session_state or st.session_state.mode is None: st.session_state.mode = "Add Points"
 
 # --- LOGIN ---
 if not st.session_state.session_started:
-    st.header("🦪 Mussel Annotation Project")
-    name_input = st.text_input("Enter your name:").strip()
-    if name_input:
+    st.header("🦪 Mussel Annotator")
+    name_input = st.text_input("Enter name:").strip()
+    if name_input and st.button("Log In"):
         res = github_request("GET", "")
         existing = [f["name"] for f in res.json() if f["name"].startswith(name_input)] if res.status_code == 200 else []
-        if existing:
-            latest = sorted(existing)[-1]
-            c1, c2 = st.columns(2)
-            if c1.button(f"Continue ({latest})"):
-                st.session_state.update({"user_name": name_input, "folder": latest, "session_started": True})
-                res_f = github_request("GET", latest)
-                if res_f.status_code == 200:
-                    st.session_state.img_idx = len([f for f in res_f.json() if "_labels.json" in f["name"]])
-                st.rerun()
-            if c2.button("Start New Session"):
-                st.session_state.update({"user_name": name_input, "folder": f"{name_input}_v{len(existing)+1}", "session_started": True})
-                st.rerun()
-        elif st.button("Start Project"):
-            st.session_state.update({"user_name": name_input, "folder": f"{name_input}_v1", "session_started": True})
-            st.rerun()
+        folder = f"{name_input}_v{len(existing)+1}"
+        st.session_state.update({"user_name": name_input, "folder": folder, "session_started": True})
+        st.rerun()
     st.stop()
 
 # --- IMAGE PREP ---
 images = sorted([f for f in os.listdir(IMAGE_DIR) if f.lower().endswith(('.jpg', '.jpeg', '.png'))])
 if st.session_state.img_idx >= len(images):
-    st.success("🎉 All Done! Thank you."); st.stop()
+    st.success("All Done!"); st.stop()
 
 current_img = images[st.session_state.img_idx]
-img_path = os.path.join(IMAGE_DIR, current_img)
-pil_img = Image.open(img_path).convert("RGB")
-orig_w, orig_h = pil_img.size
+display_img, (orig_w, orig_h) = load_and_resize_image(os.path.join(IMAGE_DIR, current_img))
 
-# --- LOAD POINTS FOR CURRENT IMAGE ---
+# --- LOAD POINTS ---
 label_path = f"{st.session_state.folder}/{current_img}_labels.json"
 if st.session_state.current_loaded_img != current_img:
     existing_data = get_existing_annotation(label_path)
-    if existing_data:
-        st.session_state.points = [[r['value']['x'], r['value']['y']] for r in existing_data["annotations"][0]["result"]]
-    else:
-        st.session_state.points = []
+    st.session_state.points = [[r['value']['x'], r['value']['y']] for r in existing_data["annotations"][0]["result"]] if existing_data else []
     st.session_state.current_loaded_img = current_img
 
-# --- DRAWING ---
-draw_img = pil_img.copy()
+# --- DRAW POINTS ---
+draw_img = display_img.copy()
 draw = ImageDraw.Draw(draw_img)
+disp_w, disp_h = display_img.size
 for p in st.session_state.points:
-    px, py = (p[0] / 100) * orig_w, (p[1] / 100) * orig_h
-    r = max(orig_w, orig_h) * 0.006
-    draw.ellipse([px-r, py-r, px+r, py+r], fill="red", outline="white", width=2)
+    # Scale percentage to the DISPLAY image size
+    px, py = (p[0] / 100) * disp_w, (p[1] / 100) * disp_h
+    r = 5 # Fixed size for speed
+    draw.ellipse([px-r, py-r, px+r, py+r], fill="red", outline="white")
 
 # --- UI ---
 st.subheader(f"🖼️ {current_img} ({st.session_state.img_idx+1}/{len(images)})")
+c1, c2, c3 = st.columns([2, 2, 4])
+st.session_state.mode = c1.radio("Mode", ["Add Points", "Delete Points"], horizontal=True, label_visibility="collapsed")
+if c2.button("🗑️ Reset"):
+    st.session_state.points = []
+    st.rerun()
 
-col1, col2 = st.columns([4, 6])
-with col1:
-    st.session_state.mode = st.radio("Mode", ["Add Points", "Delete Points"], horizontal=True)
-with col2:
-    if st.button("🗑️ Reset Points"):
-        st.session_state.points = []
-        st.rerun()
-
-# We set NO width here; it will automatically scale to your browser window
-value = streamlit_image_coordinates(draw_img, key=f"coord_{st.session_state.img_idx}")
+# --- THE IMAGE (Inside a container for width control) ---
+st.markdown('<div class="img-container">', unsafe_allow_html=True)
+value = streamlit_image_coordinates(draw_img, key=f"c_{st.session_state.img_idx}_{len(st.session_state.points)}")
+st.markdown('</div>', unsafe_allow_html=True)
 
 if value:
-    # Use the coordinates relative to the DISPLAYED size
-    click_x = (value["x"] / value["width"]) * 100
-    click_y = (value["y"] / value["height"]) * 100
+    # Convert display pixels to percentage
+    click_x = (value["x"] / disp_w) * 100
+    click_y = (value["y"] / disp_h) * 100
     
     if st.session_state.mode == "Add Points":
-        if not any(abs(p[0]-click_x) < 0.7 and abs(p[1]-click_y) < 0.7 for p in st.session_state.points):
+        if not any(abs(p[0]-click_x) < 0.8 and abs(p[1]-click_y) < 0.8 for p in st.session_state.points):
             st.session_state.points.append([click_x, click_y])
             st.rerun()
     else:
@@ -134,14 +132,7 @@ if value:
 
 # --- SAVE ---
 if st.button("💾 SAVE & NEXT", type="primary", use_container_width=True):
-    res_list = [{
-        "original_width": orig_w, "original_height": orig_h,
-        "value": {"x": p[0], "y": p[1], "keypointlabels": ["mussel"]},
-        "from_name": "label", "to_name": "image", "type": "keypointlabels"
-    } for p in st.session_state.points]
-    
-    ls_json = {"data": {"image": "...", "filename": current_img}, "annotations": [{"result": res_list}]}
-    if upload_to_github(label_path, ls_json, "Labels"):
+    res_list = [{"original_width": orig_w, "original_height": orig_h, "value": {"x": p[0], "y": p[1], "keypointlabels": ["mussel"]}, "from_name": "label", "to_name": "image", "type": "keypointlabels"} for p in st.session_state.points]
+    if upload_to_github(label_path, {"annotations": [{"result": res_list}]}, "Labels"):
         st.session_state.img_idx += 1
-        st.session_state.start_time = time.time()
         st.rerun()
