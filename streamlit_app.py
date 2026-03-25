@@ -170,18 +170,22 @@ with st.sidebar:
 if st.session_state.paused:
     st.warning("Application Paused. Your timer is stopped.")
 else:
-    canvas_result = st_canvas(
-        background_image=pil_img,
-        initial_drawing=initial_drawing,
-        drawing_mode="point",
-        key="canvas",
-        height=pil_img.height,
-        width=pil_img.width,
-        stroke_width=2,
-        stroke_color="#FF0000",
-        display_toolbar=True,
-        update_streamlit=True,
-    )
+    with st.container():
+        st.image(pil_img, caption="Debug: If you see this, the image loaded correctly.")
+        canvas_result = st_canvas(
+            fill_color="rgba(255, 165, 0, 0.3)",  
+            stroke_width=2,
+            stroke_color="#FF0000",
+            background_image=pil_img,
+            update_streamlit=True,
+            height=pil_img.height,
+            width=pil_img.width,
+            drawing_mode="point",
+            point_display_radius=5,
+            initial_drawing=initial_drawing,
+            key="canvas",
+            display_toolbar=True,
+        )
 
     # --- STEP 5: SAVE & ADVANCE ---
     points = canvas_result.json_data["objects"] if canvas_result.json_data else []
