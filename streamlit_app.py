@@ -1,7 +1,5 @@
 import streamlit as st
-# The correct import path for version 0.8.0
-from streamlit_image_annotation.point_annotation import point_annotation
-
+from streamlit_image_annotation import pointdet # The correct function name
 from PIL import Image
 import os
 import json
@@ -43,8 +41,8 @@ def get_existing_annotation(path):
 # --- SESSION STATE ---
 if "user_name" not in st.session_state:
     st.session_state.update({
-        "user_name": None, "img_idx": 0, "paused": False, 
-        "elapsed": 0, "start_time": time.time(), "folder": None, "session_started": False
+        "user_name": None, "img_idx": 0, "folder": None, 
+        "session_started": False, "start_time": time.time()
     })
 
 # --- STEP 1: LOGIN ---
@@ -64,7 +62,7 @@ if not st.session_state.session_started:
                     if res_f.status_code == 200:
                         st.session_state.img_idx = len([f for f in res_f.json() if "_labels.json" in f["name"]])
                     st.rerun()
-            with col2:
+            with c2:
                 if st.button("New Session"):
                     st.session_state.update({"user_name": name_input, "folder": f"{name_input}_v{len(existing)+1}", "session_started": True})
                     st.rerun()
@@ -86,44 +84,62 @@ orig_w, orig_h = pil_img.size
 # --- STEP 3: ANNOTATION INTERFACE ---
 st.write(f"**Current Image:** {current_img} ({st.session_state.img_idx+1}/{len(images)})")
 
+# Load existing points into the two-list format the tool needs
 label_path = f"{st.session_state.folder}/{current_img}_labels.json"
 existing_data = get_existing_annotation(label_path)
-initial_points = []
+pts_list = []
+ids_list = []
+
 if existing_data:
     for r in existing_data["annotations"][0]["result"]:
-        # Map back to 'x', 'y' format for the tool
-        initial_points.append({'x': r['value']['x'], 'y': r['value']['y'], 'label': 'mussel'})
+        pts_list.append([r['value']['x'], r['value']['y']])
+        ids_list.append(0) # 'mussel' is our only label, so index is always 0
 
-# Use the image path directly
-# The key must change per image to reset the UI
-new_points = point_annotation(
+# RENDER THE COMPONENT
+# Note: we use 'pointdet' and pass points/labels separately
+new_labels = pointdet(
     image_path=img_path,
-    labels=['mussel'],
-    initial_point_list=initial_points,
-    allow_empty=True,
-    key=f"annotator_v5_{st.session_state.img_idx}"
+    label_list=['mussel'],
+    points=pts_list,
+    labels=ids_list,
+    use_space=True, 
+    key=f"det_{st.session_state.img_idx}"
 )
 
 # --- STEP 4: SAVE LOGIC ---
-if new_points is not None:
-    # Logic only proceeds if the user interacts with the tool
+if new_labels is not None:
     if st.button("💾 Save & Next Image", type="primary"):
-        with st.spinner("Saving to GitHub..."):
+        with st.spinner("Uploading..."):
             buf = BytesIO()
             pil_img.save(buf, format="JPEG")
             img_b64 = f"data:image/jpeg;base64,{base64.b64encode(buf.getvalue()).decode()}"
 
+            # Convert pointdet format back to Label Studio format
+            # new_labels is a list of dicts: [{'point': [x,y], 'label_id': 0}, ...]
+            res_list = []
+            for item in new_labels:
+                res_list.append({
+                    "original_width": orig_w, "original_height": orig_h,
+                    "value": {
+                        "x": item['point'][0], 
+                        "y": item['point'][1], 
+                        "keypointlabels": ["mussel"]
+                    },
+                    "from_name": "label", "to_name": "image", "type": "keypointlabels"
+                })
+
             ls_json = {
                 "data": {"image": img_b64, "filename": current_img},
-                "annotations": [{"result": [{
-                    "original_width": orig_w, "original_height": orig_h,
-                    "value": {"x": p['x'], "y": p['y'], "keypointlabels": ["mussel"]},
-                    "from_name": "label", "to_name": "image", "type": "keypointlabels"
-                } for p in new_points]}]
+                "annotations": [{"result": res_list}]
             }
             
             duration = round(time.time() - st.session_state.start_time, 2)
-            meta_json = {"image": current_img, "duration_sec": duration, "count": len(new_points), "timestamp": datetime.now().isoformat()}
+            meta_json = {
+                "image": current_img, 
+                "duration_sec": duration, 
+                "count": len(new_labels), 
+                "timestamp": datetime.now().isoformat()
+            }
             
             if upload_to_github(label_path, ls_json, "Labels") and upload_to_github(f"{st.session_state.folder}/{current_img}_meta.json", meta_json, "Meta"):
                 st.session_state.update({"img_idx": st.session_state.img_idx + 1, "start_time": time.time()})
