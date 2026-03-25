@@ -118,7 +118,7 @@ if st.session_state.load_prev == True and existing_data:
     ]}
 
 # --- STEP 4: UI & CANVAS ---
-st.write(f"**Image:** {current_img} ({st.session_state.img_idx+1}/{len(images)})")
+st.write(f"**Current Image:** {current_img} ({st.session_state.img_idx+1}/{len(images)})")
 
 if st.session_state.paused:
     st.warning("Paused.")
@@ -127,20 +127,29 @@ if st.session_state.paused:
         st.session_state.paused = False
         st.rerun()
 else:
-    # Key includes index to force fresh canvas per image
-    canvas_key = f"canvas_vFinal_{st.session_state.img_idx}"
+    # 1. THE FORCE-LOAD TRICK
+    # We render the image normally first. This ensures the browser has it in its cache.
+    with st.expander("Reference Image (Open if canvas is blank)", expanded=False):
+        st.image(ui_img, caption="Browser Cache Loader")
+
+    # 2. THE DYNAMIC KEY
+    # We add 'v4' to the key to force a total refresh of the component
+    canvas_key = f"canvas_v4_{current_img}_{st.session_state.img_idx}"
     
+    # 3. THE CANVAS
+    # Note: We are using 'ui_img' which is the physically resized PIL object.
     canvas_result = st_canvas(
         fill_color="rgba(255, 165, 0, 0.3)",
         stroke_width=2,
         stroke_color="#FF0000",
-        background_image=ui_img, # Try PIL first, but the key reset is the main fix
+        background_image=ui_img, 
         height=disp_h,
         width=disp_w,
         drawing_mode="point",
         point_display_radius=5,
         initial_drawing=initial_drawing,
         key=canvas_key,
+        update_streamlit=True,
         display_toolbar=True,
     )
 
