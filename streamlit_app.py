@@ -117,9 +117,17 @@ current_img = images[st.session_state.img_idx]
 img_path = os.path.join(IMAGE_DIR, current_img)
 pil_img = Image.open(img_path)
 
+# --- NEW: Scaling Logic for the UI ---
+MAX_DISPLAY_WIDTH = 1000
+original_width, original_height = pil_img.size
+scale_factor = MAX_DISPLAY_WIDTH / original_width if original_width > MAX_DISPLAY_WIDTH else 1
+
+display_width = int(original_width * scale_factor)
+display_height = int(original_height * scale_factor)
+
 # UI Elements
 st.progress(st.session_state.img_idx / len(images))
-st.write(f"**User:** {st.session_state.user_name} | **Folder:** `{st.session_state.folder}` | **Image:** {st.session_state.img_idx + 1} / {len(images)}")
+st.write(f"**User:** {st.session_state.user_name} | **Image:** {st.session_state.img_idx + 1} / {len(images)}")
 
 # --- STEP 3: INDIVIDUAL IMAGE RESUME LOGIC ---
 label_path = f"{st.session_state.folder}/{current_img}_labels.json"
@@ -147,11 +155,12 @@ if existing_data and not st.session_state.load_prev:
 # Convert normalized LS points back to Canvas pixels
 if st.session_state.load_prev == True and existing_data:
     initial_drawing = {"objects": [
-        {"type": "circle", "left": (r["value"]["x"] * pil_img.width / 100), 
-         "top": (r["value"]["y"] * pil_img.height / 100), "radius": 4, "fill": "red"} 
+        {"type": "circle", 
+         "left": (r["value"]["x"] * original_width / 100) * scale_factor, 
+         "top": (r["value"]["y"] * original_height / 100) * scale_factor, 
+         "radius": 4, "fill": "red"} 
         for r in existing_data["annotations"][0]["result"]
     ]}
-
 # --- STEP 4: CANVAS & TIMER ---
 with st.sidebar:
     st.header("Controls")
@@ -170,22 +179,21 @@ with st.sidebar:
 if st.session_state.paused:
     st.warning("Application Paused. Your timer is stopped.")
 else:
-    with st.container():
-        st.image(pil_img, caption="Debug: If you see this, the image loaded correctly.")
-        canvas_result = st_canvas(
-            fill_color="rgba(255, 165, 0, 0.3)",  
-            stroke_width=2,
-            stroke_color="#FF0000",
-            background_image=pil_img,
-            update_streamlit=True,
-            height=pil_img.height,
-            width=pil_img.width,
-            drawing_mode="point",
-            point_display_radius=5,
-            initial_drawing=initial_drawing,
-            key="canvas",
-            display_toolbar=True,
-        )
+    # Use a container to help with centering/sizing
+    canvas_result = st_canvas(
+        fill_color="rgba(255, 165, 0, 0.3)",
+        stroke_width=2,
+        stroke_color="#FF0000",
+        background_image=pil_img,
+        update_streamlit=True,
+        height=display_height, # Use scaled height
+        width=display_width,   # Use scaled width
+        drawing_mode="point",
+        point_display_radius=5,
+        initial_drawing=initial_drawing,
+        key="canvas",
+        display_toolbar=True,
+    )
 
     # --- STEP 5: SAVE & ADVANCE ---
     points = canvas_result.json_data["objects"] if canvas_result.json_data else []
@@ -201,8 +209,13 @@ else:
             ls_json = {
                 "data": {"image": img_b64, "filename": current_img},
                 "annotations": [{"result": [{
-                    "original_width": pil_img.width, "original_height": pil_img.height,
-                    "value": {"x": p["left"]/pil_img.width*100, "y": p["top"]/pil_img.height*100, "keypointlabels": ["mussel"]},
+                    "original_width": original_width, 
+                    "original_height": original_height,
+                    "value": {
+                        "x": (p["left"] / scale_factor) / original_width * 100, 
+                        "y": (p["top"] / scale_factor) / original_height * 100, 
+                        "keypointlabels": ["mussel"]
+                    },
                     "from_name": "label", "to_name": "image", "type": "keypointlabels"
                 } for p in points]}]
             }
