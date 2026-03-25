@@ -1,9 +1,6 @@
 import streamlit as st
-# Try the most common export name for this version
-try:
-    from streamlit_image_annotation import image_point_annotation as point_annotation
-except ImportError:
-    from streamlit_image_annotation import point_annotation
+# The correct import path for version 0.8.0
+from streamlit_image_annotation.point_annotation import point_annotation
 
 from PIL import Image
 import os
@@ -67,7 +64,7 @@ if not st.session_state.session_started:
                     if res_f.status_code == 200:
                         st.session_state.img_idx = len([f for f in res_f.json() if "_labels.json" in f["name"]])
                     st.rerun()
-            with c2:
+            with col2:
                 if st.button("New Session"):
                     st.session_state.update({"user_name": name_input, "folder": f"{name_input}_v{len(existing)+1}", "session_started": True})
                     st.rerun()
@@ -94,22 +91,24 @@ existing_data = get_existing_annotation(label_path)
 initial_points = []
 if existing_data:
     for r in existing_data["annotations"][0]["result"]:
+        # Map back to 'x', 'y' format for the tool
         initial_points.append({'x': r['value']['x'], 'y': r['value']['y'], 'label': 'mussel'})
 
-# Using the new component
-# It handles the image display via a direct file path, which is much more stable!
+# Use the image path directly
+# The key must change per image to reset the UI
 new_points = point_annotation(
     image_path=img_path,
     labels=['mussel'],
     initial_point_list=initial_points,
     allow_empty=True,
-    key=f"annotator_{st.session_state.img_idx}"
+    key=f"annotator_v5_{st.session_state.img_idx}"
 )
 
 # --- STEP 4: SAVE LOGIC ---
 if new_points is not None:
-    if st.button("💾 Save & Next", type="primary"):
-        with st.spinner("Uploading..."):
+    # Logic only proceeds if the user interacts with the tool
+    if st.button("💾 Save & Next Image", type="primary"):
+        with st.spinner("Saving to GitHub..."):
             buf = BytesIO()
             pil_img.save(buf, format="JPEG")
             img_b64 = f"data:image/jpeg;base64,{base64.b64encode(buf.getvalue()).decode()}"
@@ -123,7 +122,6 @@ if new_points is not None:
                 } for p in new_points]}]
             }
             
-            # Simple duration calc
             duration = round(time.time() - st.session_state.start_time, 2)
             meta_json = {"image": current_img, "duration_sec": duration, "count": len(new_points), "timestamp": datetime.now().isoformat()}
             
