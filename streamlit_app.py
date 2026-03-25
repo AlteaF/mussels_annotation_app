@@ -80,76 +80,75 @@ if st.session_state.img_idx >= len(images):
 current_img = images[st.session_state.img_idx]
 img_path = os.path.join(IMAGE_DIR, current_img)
 pil_img = Image.open(img_path)
-
-# 1. Get dimensions
 orig_w, orig_h = pil_img.size
 
-# 2. Force a web-friendly size (800px wide)
-MAX_WIDTH = 800
+# Physical Resize for the UI - This is crucial to avoid the 'str has no height' error
+MAX_WIDTH = 800 
 scale = MAX_WIDTH / orig_w if orig_w > MAX_WIDTH else 1
 disp_w, disp_h = int(orig_w * scale), int(orig_h * scale)
 
-# 3. Create the Base64 string once
-buffered = BytesIO()
-# We resize the actual image OBJECT before converting to Base64
-pil_img.resize((disp_w, disp_h)).save(buffered, format="PNG")
-img_str = base64.b64encode(buffered.getvalue()).decode()
-canvas_bg_url = f"data:image/png;base64,{img_str}"
+# We create a specific 'ui_img' object that is already the right size
+ui_img = pil_img.resize((disp_w, disp_h))
 
 # --- STEP 3: RESUME LOGIC ---
 label_path = f"{st.session_state.folder}/{current_img}_labels.json"
 existing_data = get_existing_annotation(label_path)
 initial_drawing = None
 
+# If user hasn't decided to load/fresh yet, show the choice
 if existing_data and not st.session_state.load_prev:
     st.info(f"Existing data found for {current_img}")
     c1, c2 = st.columns(2)
     with c1:
-        if st.button("Load Previous"): st.session_state.load_prev = True; st.rerun()
+        if st.button("Load Previous Progress"): 
+            st.session_state.load_prev = True
+            st.rerun()
     with c2:
-        if st.button("New Version"): 
-            st.session_state.folder = f"{st.session_state.folder.split('_v')[0]}_v{int(re.search(r'_v(\d+)$', st.session_state.folder).group(1))+1 if re.search(r'_v(\d+)$', st.session_state.folder) else 2}"
-            st.session_state.load_prev = "fresh"; st.rerun()
+        if st.button("Start Fresh (New Version)"): 
+            base = st.session_state.folder.split('_v')[0]
+            v_match = re.search(r'_v(\d+)$', st.session_state.folder)
+            new_v = int(v_match.group(1)) + 1 if v_match else 2
+            st.session_state.folder = f"{base}_v{new_v}"
+            st.session_state.load_prev = "fresh"
+            st.rerun()
     st.stop()
 
+# If loading, scale the old points to the new UI size
 if st.session_state.load_prev == True and existing_data:
     initial_drawing = {"objects": [
-        {"type": "circle", "left": (r["value"]["x"] * orig_w / 100) * scale, "top": (r["value"]["y"] * orig_h / 100) * scale, "radius": 4, "fill": "red"} 
+        {"type": "circle", 
+         "left": (r["value"]["x"] * orig_w / 100) * scale, 
+         "top": (r["value"]["y"] * orig_h / 100) * scale, 
+         "radius": 4, "fill": "red"} 
         for r in existing_data["annotations"][0]["result"]
     ]}
 
 # --- STEP 4: UI & CANVAS ---
-st.write(f"**Current Image:** {current_img} ({st.session_state.img_idx+1}/{len(images)})")
-st.subheader(f"Annotating: {current_img}")
+st.write(f"**Image:** {current_img} ({st.session_state.img_idx+1}/{len(images)})")
 
 if st.session_state.paused:
     st.warning("Paused.")
-    if st.button("Resume"):
+    if st.button("▶️ Resume"):
         st.session_state.start_time = time.time()
         st.session_state.paused = False
         st.rerun()
 else:
-    # Use a unique key that changes ONLY when the image index changes
-    c_key = f"canvas_v3_{st.session_state.img_idx}"
+    # UNIQUE KEY per image index ensures a clean slate (no ghost points)
+    canvas_key = f"canvas_idx_{st.session_state.img_idx}"
     
-    # We use a standard st.columns to constrain the width
-    col_c, _ = st.columns([10, 1]) 
-    with col_c:
-        canvas_result = st_canvas(
-            fill_color="rgba(255, 165, 0, 0.3)",
-            stroke_width=2,
-            stroke_color="#FF0000",
-            background_image=None,      # <--- SET THIS TO NONE
-            background_color=canvas_bg_url, # <--- TRICK: Pass the DataURL to background_color
-            height=disp_h,
-            width=disp_w,
-            drawing_mode="point",
-            point_display_radius=5,
-            initial_drawing=initial_drawing,
-            key=c_key,
-            update_streamlit=True,
-            display_toolbar=True,
-        )
+    canvas_result = st_canvas(
+        fill_color="rgba(255, 165, 0, 0.3)",
+        stroke_width=2,
+        stroke_color="#FF0000",
+        background_image=ui_img, # Passing the pre-resized PIL Image
+        height=disp_h,           # Match exactly to ui_img.height
+        width=disp_w,            # Match exactly to ui_img.width
+        drawing_mode="point",
+        point_display_radius=5,
+        initial_drawing=initial_drawing,
+        key=canvas_key,          # The magic key for "clean slate"
+        display_toolbar=True,
+    )
 
     if st.sidebar.button("☕ Take a Break"):
         st.session_state.elapsed += (time.time() - st.session_state.start_time)
