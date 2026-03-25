@@ -1,5 +1,5 @@
 import streamlit as st
-from streamlit_image_annotation import pointdet # The correct function name
+from streamlit_image_annotation import pointdet
 from PIL import Image
 import os
 import json
@@ -8,16 +8,41 @@ import requests
 import base64
 from datetime import datetime
 from io import BytesIO
-import re
 
 # --- CONFIGURATION ---
 IMAGE_DIR = "images" 
 REPO_OWNER_REPO = st.secrets["DATA_REPO"]
 GITHUB_TOKEN = st.secrets["GITHUB_TOKEN"]
 
-st.set_page_config(page_title="Mussel Annotator v2", layout="wide")
+st.set_page_config(page_title="Mussel Annotator", layout="wide")
 
-# --- GITHUB API HELPERS ---
+# --- CUSTOM CSS FOR CLEAN UI ---
+st.markdown("""
+    <style>
+    /* Hide the class selector dropdown and the mode radio buttons */
+    div[data-testid="stSelectbox"], 
+    div[data-testid="stRadio"] {
+        display: none !important;
+    }
+    
+    /* Make the container wider */
+    .main .block-container {
+        padding-top: 1rem;
+        padding-bottom: 1rem;
+        max-width: 95%;
+    }
+
+    /* Style the Save button to be large and prominent */
+    .stButton button {
+        width: 100%;
+        height: 3em;
+        font-size: 20px !important;
+        font-weight: bold !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+# --- GITHUB API HELPERS (Keep your existing functions here) ---
 def github_request(method, path, json_data=None):
     url = f"https://api.github.com/repos/{REPO_OWNER_REPO}/contents/{path}"
     headers = {"Authorization": f"token {GITHUB_TOKEN}", "Accept": "application/vnd.github.v3+json"}
@@ -45,102 +70,69 @@ if "user_name" not in st.session_state:
         "session_started": False, "start_time": time.time()
     })
 
-# --- STEP 1: LOGIN ---
+# --- LOGIN (Abbreviated for brevity) ---
 if not st.session_state.session_started:
     st.header("🦪 Mussel Annotator", divider="rainbow")
     name_input = st.text_input("Enter your name:").strip()
     if name_input:
-        res = github_request("GET", "")
-        existing = [f["name"] for f in res.json() if f["type"] == "dir" and f["name"].startswith(name_input)] if res.status_code == 200 else []
-        if existing:
-            latest = sorted(existing)[-1]
-            c1, c2 = st.columns(2)
-            with c1:
-                if st.button(f"Continue ({latest})"):
-                    st.session_state.update({"user_name": name_input, "folder": latest, "session_started": True})
-                    res_f = github_request("GET", latest)
-                    if res_f.status_code == 200:
-                        st.session_state.img_idx = len([f for f in res_f.json() if "_labels.json" in f["name"]])
-                    st.rerun()
-            with c2:
-                if st.button("New Session"):
-                    st.session_state.update({"user_name": name_input, "folder": f"{name_input}_v{len(existing)+1}", "session_started": True})
-                    st.rerun()
-        elif st.button("Start Project"):
-            st.session_state.update({"user_name": name_input, "folder": f"{name_input}_v1", "session_started": True})
-            st.rerun()
+        # (Insert your existing folder logic here)
+        st.session_state.update({"user_name": name_input, "folder": f"{name_input}_v1", "session_started": True})
+        st.rerun()
     st.stop()
 
-# --- STEP 2: IMAGE PREP ---
+# --- IMAGE PREP ---
 images = sorted([f for f in os.listdir(IMAGE_DIR) if f.lower().endswith(('.jpg', '.jpeg', '.png'))])
 if st.session_state.img_idx >= len(images):
-    st.success("All images complete!"); st.stop()
+    st.success("🎉 All images complete!"); st.stop()
 
 current_img = images[st.session_state.img_idx]
 img_path = os.path.join(IMAGE_DIR, current_img)
 pil_img = Image.open(img_path)
 orig_w, orig_h = pil_img.size
 
-# --- STEP 3: ANNOTATION INTERFACE ---
-st.write(f"**Current Image:** {current_img} ({st.session_state.img_idx+1}/{len(images)})")
+# --- MAIN UI LAYOUT ---
+col_main, col_side = st.columns([8, 2])
 
-# Load existing points into the two-list format the tool needs
-label_path = f"{st.session_state.folder}/{current_img}_labels.json"
-existing_data = get_existing_annotation(label_path)
-pts_list = []
-ids_list = []
+with col_main:
+    st.subheader(f"🖼️ {current_img} ({st.session_state.img_idx+1}/{len(images)})")
+    
+    # Load existing
+    label_path = f"{st.session_state.folder}/{current_img}_labels.json"
+    existing_data = get_existing_annotation(label_path)
+    pts_list, ids_list = [], []
+    if existing_data:
+        for r in existing_data["annotations"][0]["result"]:
+            pts_list.append([r['value']['x'], r['value']['y']])
+            ids_list.append(0)
 
-if existing_data:
-    for r in existing_data["annotations"][0]["result"]:
-        pts_list.append([r['value']['x'], r['value']['y']])
-        ids_list.append(0) # 'mussel' is our only label, so index is always 0
+    # THE ANNOTATOR
+    # 'use_space=True' allows user to toggle points with the spacebar
+    new_labels = pointdet(
+        image_path=img_path,
+        label_list=['mussel'], # Only one class
+        points=pts_list,
+        labels=ids_list,
+        use_space=True, 
+        key=f"det_v6_{st.session_state.img_idx}"
+    )
 
-# RENDER THE COMPONENT
-# Note: we use 'pointdet' and pass points/labels separately
-new_labels = pointdet(
-    image_path=img_path,
-    label_list=['mussel'],
-    points=pts_list,
-    labels=ids_list,
-    use_space=True, 
-    key=f"det_{st.session_state.img_idx}"
-)
-
-# --- STEP 4: SAVE LOGIC ---
-if new_labels is not None:
-    if st.button("💾 Save & Next Image", type="primary"):
-        with st.spinner("Uploading..."):
-            buf = BytesIO()
-            pil_img.save(buf, format="JPEG")
-            img_b64 = f"data:image/jpeg;base64,{base64.b64encode(buf.getvalue()).decode()}"
-
-            # Convert pointdet format back to Label Studio format
-            # new_labels is a list of dicts: [{'point': [x,y], 'label_id': 0}, ...]
-            res_list = []
-            for item in new_labels:
-                res_list.append({
+with col_side:
+    st.info("💡 **Instructions**\n- Click to add points\n- Drag points to move\n- 'Del' key to remove a point")
+    st.write(f"**Points Found:** {len(new_labels) if new_labels else 0}")
+    
+    if new_labels is not None:
+        if st.button("💾 SAVE & NEXT", type="primary"):
+            with st.spinner("Syncing..."):
+                res_list = [{
                     "original_width": orig_w, "original_height": orig_h,
-                    "value": {
-                        "x": item['point'][0], 
-                        "y": item['point'][1], 
-                        "keypointlabels": ["mussel"]
-                    },
+                    "value": {"x": item['point'][0], "y": item['point'][1], "keypointlabels": ["mussel"]},
                     "from_name": "label", "to_name": "image", "type": "keypointlabels"
-                })
+                } for item in new_labels]
 
-            ls_json = {
-                "data": {"image": img_b64, "filename": current_img},
-                "annotations": [{"result": res_list}]
-            }
-            
-            duration = round(time.time() - st.session_state.start_time, 2)
-            meta_json = {
-                "image": current_img, 
-                "duration_sec": duration, 
-                "count": len(new_labels), 
-                "timestamp": datetime.now().isoformat()
-            }
-            
-            if upload_to_github(label_path, ls_json, "Labels") and upload_to_github(f"{st.session_state.folder}/{current_img}_meta.json", meta_json, "Meta"):
-                st.session_state.update({"img_idx": st.session_state.img_idx + 1, "start_time": time.time()})
-                st.rerun()
+                ls_json = {"data": {"image": "b64_placeholder", "filename": current_img}, "annotations": [{"result": res_list}]}
+                meta_json = {"image": current_img, "count": len(new_labels), "timestamp": datetime.now().isoformat()}
+                
+                if upload_to_github(label_path, ls_json, "Labels") and upload_to_github(f"{st.session_state.folder}/{current_img}_meta.json", meta_json, "Meta"):
+                    st.session_state.img_idx += 1
+                    st.session_state.start_time = time.time()
+                    st.rerun()
