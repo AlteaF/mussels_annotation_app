@@ -1,5 +1,10 @@
 import streamlit as st
-from streamlit_image_annotation import point_annotation
+# Try the most common export name for this version
+try:
+    from streamlit_image_annotation import image_point_annotation as point_annotation
+except ImportError:
+    from streamlit_image_annotation import point_annotation
+
 from PIL import Image
 import os
 import json
@@ -84,7 +89,6 @@ orig_w, orig_h = pil_img.size
 # --- STEP 3: ANNOTATION INTERFACE ---
 st.write(f"**Current Image:** {current_img} ({st.session_state.img_idx+1}/{len(images)})")
 
-# Get existing points if any (formatted for this library)
 label_path = f"{st.session_state.folder}/{current_img}_labels.json"
 existing_data = get_existing_annotation(label_path)
 initial_points = []
@@ -92,40 +96,37 @@ if existing_data:
     for r in existing_data["annotations"][0]["result"]:
         initial_points.append({'x': r['value']['x'], 'y': r['value']['y'], 'label': 'mussel'})
 
-# RENDER THE NEW COMPONENT
-# This library handles the resizing and display much better
+# Using the new component
+# It handles the image display via a direct file path, which is much more stable!
 new_points = point_annotation(
     image_path=img_path,
     labels=['mussel'],
     initial_point_list=initial_points,
     allow_empty=True,
-    key=f"annotator_{st.session_state.img_idx}" # Ensures fresh start
+    key=f"annotator_{st.session_state.img_idx}"
 )
 
 # --- STEP 4: SAVE LOGIC ---
 if new_points is not None:
-    c1, c2 = st.columns([1, 4])
-    with c1:
-        if st.button("💾 Save & Next", type="primary"):
-            with st.spinner("Uploading..."):
-                # Convert back to Label Studio format
-                # Note: this library already provides x/y in 0-100 percentage format!
-                buf = BytesIO()
-                pil_img.save(buf, format="JPEG")
-                img_b64 = f"data:image/jpeg;base64,{base64.b64encode(buf.getvalue()).decode()}"
+    if st.button("💾 Save & Next", type="primary"):
+        with st.spinner("Uploading..."):
+            buf = BytesIO()
+            pil_img.save(buf, format="JPEG")
+            img_b64 = f"data:image/jpeg;base64,{base64.b64encode(buf.getvalue()).decode()}"
 
-                ls_json = {
-                    "data": {"image": img_b64, "filename": current_img},
-                    "annotations": [{"result": [{
-                        "original_width": orig_w, "original_height": orig_h,
-                        "value": {"x": p['x'], "y": p['y'], "keypointlabels": ["mussel"]},
-                        "from_name": "label", "to_name": "image", "type": "keypointlabels"
-                    } for p in new_points]}]
-                }
-                
-                active_time = st.session_state.elapsed + (time.time() - st.session_state.start_time)
-                meta_json = {"image": current_img, "duration_sec": round(active_time, 2), "count": len(new_points), "timestamp": datetime.now().isoformat()}
-                
-                if upload_to_github(label_path, ls_json, "Labels") and upload_to_github(f"{st.session_state.folder}/{current_img}_meta.json", meta_json, "Meta"):
-                    st.session_state.update({"img_idx": st.session_state.img_idx + 1, "elapsed": 0, "start_time": time.time()})
-                    st.rerun()
+            ls_json = {
+                "data": {"image": img_b64, "filename": current_img},
+                "annotations": [{"result": [{
+                    "original_width": orig_w, "original_height": orig_h,
+                    "value": {"x": p['x'], "y": p['y'], "keypointlabels": ["mussel"]},
+                    "from_name": "label", "to_name": "image", "type": "keypointlabels"
+                } for p in new_points]}]
+            }
+            
+            # Simple duration calc
+            duration = round(time.time() - st.session_state.start_time, 2)
+            meta_json = {"image": current_img, "duration_sec": duration, "count": len(new_points), "timestamp": datetime.now().isoformat()}
+            
+            if upload_to_github(label_path, ls_json, "Labels") and upload_to_github(f"{st.session_state.folder}/{current_img}_meta.json", meta_json, "Meta"):
+                st.session_state.update({"img_idx": st.session_state.img_idx + 1, "start_time": time.time()})
+                st.rerun()
