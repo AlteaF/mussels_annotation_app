@@ -1,4 +1,4 @@
 streamlit
 streamlit-drawable-canvas
 requests
-pillow
+Pillow
