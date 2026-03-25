@@ -1,6 +1,6 @@
 import streamlit as st
 from streamlit_image_coordinates import streamlit_image_coordinates
-from PIL import Image
+from PIL import Image, ImageDraw
 import os, json, time, requests, base64
 from datetime import datetime
 from io import BytesIO
@@ -12,14 +12,15 @@ GITHUB_TOKEN = st.secrets["GITHUB_TOKEN"]
 
 st.set_page_config(page_title="Mussel Annotator Pro", layout="wide")
 
-# --- SESSION STATE ---
-if "user_name" not in st.session_state:
-    st.session_state.update({
-        "user_name": None, "img_idx": 0, "folder": None, 
-        "session_started": False, "points": [], "mode": "Add"
-    })
+# --- CSS TO FIX PADDING ---
+st.markdown("""
+    <style>
+    .block-container { padding-top: 2rem !important; max-width: 98% !important; }
+    .stRadio > div { flex-direction: row; gap: 20px; }
+    </style>
+    """, unsafe_allow_html=True)
 
-# --- GITHUB HELPERS (Unchanged) ---
+# --- GITHUB HELPERS ---
 def github_request(method, path, json_data=None):
     url = f"https://api.github.com/repos/{REPO_OWNER_REPO}/contents/{path}"
     headers = {"Authorization": f"token {GITHUB_TOKEN}", "Accept": "application/vnd.github.v3+json"}
@@ -34,10 +35,23 @@ def upload_to_github(path, content_dict, message):
     if sha: data["sha"] = sha
     return github_request("PUT", path, data).status_code in [200, 201]
 
-# --- LOGIN LOGIC ---
+def get_existing_annotation(path):
+    res = github_request("GET", path)
+    if res.status_code == 200:
+        return json.loads(base64.b64decode(res.json()["content"]).decode())
+    return None
+
+# --- SESSION STATE ---
+if "user_name" not in st.session_state:
+    st.session_state.update({
+        "user_name": None, "img_idx": 0, "folder": None, 
+        "session_started": False, "points": [], "mode": "Add", "start_time": time.time()
+    })
+
+# --- LOGIN ---
 if not st.session_state.session_started:
     st.header("🦪 Mussel Annotation Project")
-    name_input = st.text_input("Name:").strip()
+    name_input = st.text_input("Enter your name:").strip()
     if name_input:
         res = github_request("GET", "")
         existing = [f["name"] for f in res.json() if f["name"].startswith(name_input)] if res.status_code == 200 else []
@@ -46,10 +60,16 @@ if not st.session_state.session_started:
             c1, c2 = st.columns(2)
             if c1.button(f"Continue ({latest})"):
                 st.session_state.update({"user_name": name_input, "folder": latest, "session_started": True})
+                res_f = github_request("GET", latest)
+                if res_f.status_code == 200:
+                    st.session_state.img_idx = len([f for f in res_f.json() if "_labels.json" in f["name"]])
                 st.rerun()
-            if c2.button("New Session"):
+            if c2.button("Start New Session"):
                 st.session_state.update({"user_name": name_input, "folder": f"{name_input}_v{len(existing)+1}", "session_started": True})
                 st.rerun()
+        elif st.button("Start Project"):
+            st.session_state.update({"user_name": name_input, "folder": f"{name_input}_v1", "session_started": True})
+            st.rerun()
     st.stop()
 
 # --- IMAGE PREP ---
@@ -59,40 +79,57 @@ if st.session_state.img_idx >= len(images):
 
 current_img = images[st.session_state.img_idx]
 img_path = os.path.join(IMAGE_DIR, current_img)
-pil_img = Image.open(img_path)
+pil_img = Image.open(img_path).convert("RGB")
 width, height = pil_img.size
 
-# --- UI LAYOUT ---
-st.title(f"🖼️ {current_img} ({st.session_state.img_idx+1}/{len(images)})")
+# --- LOAD PREVIOUS POINTS ---
+label_path = f"{st.session_state.folder}/{current_img}_labels.json"
+if not st.session_state.points:
+    existing_data = get_existing_annotation(label_path)
+    if existing_data:
+        st.session_state.points = [[r['value']['x'], r['value']['y']] for r in existing_data["annotations"][0]["result"]]
 
-# MODES AT THE TOP (As requested)
-col_m1, col_m2, col_m3 = st.columns([2, 2, 6])
-st.session_state.mode = col_m1.radio("Mode", ["Add Points", "Delete Points"], horizontal=True)
-if col_m2.button("🗑️ Clear All"):
+# --- DRAWING OVERLAY ---
+# Create a copy of the image and draw the points on it
+draw_img = pil_img.copy()
+draw = ImageDraw.Draw(draw_img)
+for p in st.session_state.points:
+    # Convert percentage back to pixel coordinates for drawing
+    px = (p[0] / 100) * width
+    py = (p[1] / 100) * height
+    r = max(width, height) * 0.005 # Dynamic radius based on image size
+    draw.ellipse([px-r, py-r, px+r, py+r], fill="red", outline="white", width=2)
+
+# --- UI LAYOUT ---
+st.subheader(f"🖼️ {current_img} ({st.session_state.img_idx+1}/{len(images)})")
+
+# Mode & Controls at the top
+c_m1, c_m2, c_m3 = st.columns([3, 2, 5])
+st.session_state.mode = c_m1.radio("Selection Mode", ["Add Points", "Delete Points"], horizontal=True)
+if c_m2.button("🗑️ Reset Image"):
     st.session_state.points = []
     st.rerun()
 
-# THE IMAGE (Huge and Responsive)
-# This component returns the x, y of the click
-value = streamlit_image_coordinates(pil_img, key="mussel_coord", use_container_width=True)
+# THE IMAGE
+# This will now be as wide as the container
+value = streamlit_image_coordinates(draw_img, key=f"coord_{st.session_state.img_idx}", use_container_width=True)
 
 if value:
-    # Convert click coordinates to percentage (0-100) to stay resolution-independent
+    # Convert clicked pixel to percentage
     click_x = (value["x"] / value["width"]) * 100
     click_y = (value["y"] / value["height"]) * 100
     
     if st.session_state.mode == "Add Points":
-        # Check if point already exists nearby to prevent double-clicks
-        if not any(abs(p[0]-click_x) < 1 and abs(p[1]-click_y) < 1 for p in st.session_state.points):
+        # Basic debounce: don't add if clicking same spot
+        if not any(abs(p[0]-click_x) < 0.5 and abs(p[1]-click_y) < 0.5 for p in st.session_state.points):
             st.session_state.points.append([click_x, click_y])
             st.rerun()
     else:
-        # Delete mode: find closest point and remove it
-        st.session_state.points = [p for p in st.session_state.points if not (abs(p[0]-click_x) < 2 and abs(p[1]-click_y) < 2)]
+        # Delete: remove points within 1.5% distance
+        st.session_state.points = [p for p in st.session_state.points if not (abs(p[0]-click_x) < 1.5 and abs(p[1]-click_y) < 1.5)]
         st.rerun()
 
-# DRAW VISUAL FEEDBACK (Optional: uses an SVG overlay or just a list)
-st.write(f"**Mussels identified:** {len(st.session_state.points)}")
+st.write(f"**Mussels found:** {len(st.session_state.points)}")
 
 # --- SAVE ---
 if st.button("💾 SAVE & NEXT", type="primary", use_container_width=True):
@@ -104,9 +141,11 @@ if st.button("💾 SAVE & NEXT", type="primary", use_container_width=True):
         } for p in st.session_state.points]
         
         ls_json = {"data": {"image": "...", "filename": current_img}, "annotations": [{"result": res_list}]}
-        label_path = f"{st.session_state.folder}/{current_img}_labels.json"
+        duration = round(time.time() - st.session_state.start_time, 2)
+        meta_json = {"image": current_img, "duration_sec": duration, "count": len(st.session_state.points), "timestamp": datetime.now().isoformat()}
         
-        if upload_to_github(label_path, ls_json, "Save"):
+        if upload_to_github(label_path, ls_json, "Labels") and upload_to_github(f"{st.session_state.folder}/{current_img}_meta.json", meta_json, "Meta"):
             st.session_state.img_idx += 1
-            st.session_state.points = [] # Reset for next image
+            st.session_state.points = [] 
+            st.session_state.start_time = time.time()
             st.rerun()
