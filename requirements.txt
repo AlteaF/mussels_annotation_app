@@ -1,4 +1,4 @@
-streamlit==1.29.0
+streamlit==1.31.1
 streamlit-drawable-canvas==0.9.3
 requests
 Pillow
