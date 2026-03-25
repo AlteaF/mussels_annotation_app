@@ -82,20 +82,22 @@ img_path = os.path.join(IMAGE_DIR, current_img)
 pil_img = Image.open(img_path)
 orig_w, orig_h = pil_img.size
 
-# Physical Resize for the UI - This is crucial to avoid the 'str has no height' error
-MAX_WIDTH = 800 
+# Scaling for the UI
+MAX_WIDTH = 1000 
 scale = MAX_WIDTH / orig_w if orig_w > MAX_WIDTH else 1
 disp_w, disp_h = int(orig_w * scale), int(orig_h * scale)
 
-# We create a specific 'ui_img' object that is already the right size
+# CRITICAL: Prepare UI Image as Base64 to force display
 ui_img = pil_img.resize((disp_w, disp_h))
+buffered = BytesIO()
+ui_img.save(buffered, format="PNG")
+ui_img_base64 = f"data:image/png;base64,{base64.b64encode(buffered.getvalue()).decode()}"
 
 # --- STEP 3: RESUME LOGIC ---
 label_path = f"{st.session_state.folder}/{current_img}_labels.json"
 existing_data = get_existing_annotation(label_path)
 initial_drawing = None
 
-# If user hasn't decided to load/fresh yet, show the choice
 if existing_data and not st.session_state.load_prev:
     st.info(f"Existing data found for {current_img}")
     c1, c2 = st.columns(2)
@@ -104,22 +106,14 @@ if existing_data and not st.session_state.load_prev:
             st.session_state.load_prev = True
             st.rerun()
     with c2:
-        if st.button("Start Fresh (New Version)"): 
-            base = st.session_state.folder.split('_v')[0]
-            v_match = re.search(r'_v(\d+)$', st.session_state.folder)
-            new_v = int(v_match.group(1)) + 1 if v_match else 2
-            st.session_state.folder = f"{base}_v{new_v}"
+        if st.button("Start Fresh"): 
             st.session_state.load_prev = "fresh"
             st.rerun()
     st.stop()
 
-# If loading, scale the old points to the new UI size
 if st.session_state.load_prev == True and existing_data:
     initial_drawing = {"objects": [
-        {"type": "circle", 
-         "left": (r["value"]["x"] * orig_w / 100) * scale, 
-         "top": (r["value"]["y"] * orig_h / 100) * scale, 
-         "radius": 4, "fill": "red"} 
+        {"type": "circle", "left": (r["value"]["x"] * orig_w / 100) * scale, "top": (r["value"]["y"] * orig_h / 100) * scale, "radius": 4, "fill": "red"} 
         for r in existing_data["annotations"][0]["result"]
     ]}
 
@@ -133,20 +127,20 @@ if st.session_state.paused:
         st.session_state.paused = False
         st.rerun()
 else:
-    # UNIQUE KEY per image index ensures a clean slate (no ghost points)
-    canvas_key = f"canvas_idx_{st.session_state.img_idx}"
+    # Key includes index to force fresh canvas per image
+    canvas_key = f"canvas_vFinal_{st.session_state.img_idx}"
     
     canvas_result = st_canvas(
         fill_color="rgba(255, 165, 0, 0.3)",
         stroke_width=2,
         stroke_color="#FF0000",
-        background_image=ui_img, # Passing the pre-resized PIL Image
-        height=disp_h,           # Match exactly to ui_img.height
-        width=disp_w,            # Match exactly to ui_img.width
+        background_image=ui_img, # Try PIL first, but the key reset is the main fix
+        height=disp_h,
+        width=disp_w,
         drawing_mode="point",
         point_display_radius=5,
         initial_drawing=initial_drawing,
-        key=canvas_key,          # The magic key for "clean slate"
+        key=canvas_key,
         display_toolbar=True,
     )
 
@@ -158,7 +152,7 @@ else:
     # --- STEP 5: SAVE ---
     points = canvas_result.json_data["objects"] if canvas_result.json_data else []
     if st.button("💾 Save & Next Image", disabled=(len(points) == 0), type="primary"):
-        with st.spinner("Saving to GitHub..."):
+        with st.spinner("Saving..."):
             buf = BytesIO()
             pil_img.save(buf, format="JPEG")
             img_b64 = f"data:image/jpeg;base64,{base64.b64encode(buf.getvalue()).decode()}"
