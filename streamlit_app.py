@@ -178,7 +178,9 @@ else:
         height=pil_img.height,
         width=pil_img.width,
         stroke_width=2,
-        stroke_color="#FF0000"
+        stroke_color="#FF0000",
+        display_toolbar=True,
+        update_streamlit=True,
     )
 
     # --- STEP 5: SAVE & ADVANCE ---
