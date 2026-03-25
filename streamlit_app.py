@@ -8,7 +8,6 @@ import requests
 import base64
 from datetime import datetime
 from io import BytesIO
-import re
 
 # --- CONFIGURATION ---
 IMAGE_DIR = "images" 
@@ -17,12 +16,38 @@ GITHUB_TOKEN = st.secrets["GITHUB_TOKEN"]
 
 st.set_page_config(page_title="Mussel Annotator", layout="wide")
 
-# --- CSS TO HIDE UI CLUTTER & EXPAND IMAGE ---
+# --- ADVANCED CSS INJECTION ---
 st.markdown("""
     <style>
-    div[data-testid="stSelectbox"], div[data-testid="stRadio"] { display: none !important; }
-    .main .block-container { padding-top: 1rem; max-width: 98%; }
-    footer {visibility: hidden;}
+    /* 1. Fix the Top Padding so the header isn't cut off */
+    .block-container {
+        padding-top: 3rem !important;
+        max-width: 98% !important;
+    }
+
+    /* 2. Hide the Class/Label Dropdown (since you only have one class) */
+    div[data-testid="stSelectbox"] {
+        display: none !important;
+    }
+
+    /* 3. Re-style the Radio Buttons (Modes) and try to move them visually */
+    /* Note: Streamlit doesn't allow easy re-ordering of internal component HTML, 
+       so we make the "Save" button big and clear at the bottom instead. */
+    
+    .stButton button {
+        background-color: #ff4b4b !important;
+        color: white !important;
+        font-weight: bold !important;
+        height: 4rem !important;
+        border-radius: 10px !important;
+    }
+    
+    /* 4. Increase the font of the image counter */
+    .img-header {
+        font-size: 24px;
+        font-weight: bold;
+        margin-bottom: 10px;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -54,7 +79,7 @@ if "user_name" not in st.session_state:
         "session_started": False, "start_time": time.time()
     })
 
-# --- STEP 1: LOGIN (RESTORING YOUR ORIGINAL LOGIC) ---
+# --- STEP 1: LOGIN (Restored original logic) ---
 if not st.session_state.session_started:
     st.header("🦪 Mussel Annotation Project", divider="rainbow")
     name_input = st.text_input("Enter your name:").strip()
@@ -70,7 +95,6 @@ if not st.session_state.session_started:
                     st.session_state.update({"user_name": name_input, "folder": latest, "session_started": True})
                     res_f = github_request("GET", latest)
                     if res_f.status_code == 200:
-                        # Count images already annotated in this folder
                         st.session_state.img_idx = len([f for f in res_f.json() if "_labels.json" in f["name"]])
                     st.rerun()
             with col2:
@@ -85,42 +109,42 @@ if not st.session_state.session_started:
 # --- STEP 2: IMAGE PREP ---
 images = sorted([f for f in os.listdir(IMAGE_DIR) if f.lower().endswith(('.jpg', '.jpeg', '.png'))])
 if st.session_state.img_idx >= len(images):
-    st.success("All images complete!"); st.stop()
+    st.success("🎉 All images complete!"); st.stop()
 
 current_img = images[st.session_state.img_idx]
 img_path = os.path.join(IMAGE_DIR, current_img)
 pil_img = Image.open(img_path)
 orig_w, orig_h = pil_img.size
 
-# --- STEP 3: ANNOTATOR ---
-st.write(f"**Current Image:** {current_img} ({st.session_state.img_idx+1}/{len(images)})")
+# --- STEP 3: ANNOTATION INTERFACE ---
+st.markdown(f'<p class="img-header">🖼️ Image: {current_img} ({st.session_state.img_idx+1}/{len(images)})</p>', unsafe_allow_html=True)
 
-# Load existing points for THIS image if they exist
 label_path = f"{st.session_state.folder}/{current_img}_labels.json"
 existing_data = get_existing_annotation(label_path)
+pts_list, ids_list = [], []
 
-pts_list = []
-ids_list = []
 if existing_data:
     for r in existing_data["annotations"][0]["result"]:
         pts_list.append([r['value']['x'], r['value']['y']])
         ids_list.append(0)
 
-# The Component
-# key is unique per image to ensure a clean slate
+# Render the component
+# We keep the "Transform/Delete" mode visible because it's required to delete points,
+# but we move it to the sidebar if you want the image to be absolutely huge.
 new_labels = pointdet(
     image_path=img_path,
     label_list=['mussel'],
     points=pts_list,
     labels=ids_list,
     use_space=True, 
-    key=f"mussel_det_{st.session_state.img_idx}"
+    key=f"det_vfinal_{st.session_state.img_idx}"
 )
 
 # --- STEP 4: SAVE ---
 if new_labels is not None:
-    if st.button("💾 SAVE & NEXT", type="primary", use_container_width=True):
-        with st.spinner("Saving..."):
+    st.write(f"**Current Count:** {len(new_labels)} mussels")
+    if st.button("💾 SAVE & NEXT IMAGE", type="primary", use_container_width=True):
+        with st.spinner("Uploading to GitHub..."):
             buf = BytesIO()
             pil_img.save(buf, format="JPEG")
             img_b64 = f"data:image/jpeg;base64,{base64.b64encode(buf.getvalue()).decode()}"
@@ -132,11 +156,9 @@ if new_labels is not None:
             } for item in new_labels]
 
             ls_json = {"data": {"image": img_b64, "filename": current_img}, "annotations": [{"result": res_list}]}
-            
             duration = round(time.time() - st.session_state.start_time, 2)
             meta_json = {"image": current_img, "duration_sec": duration, "count": len(new_labels), "timestamp": datetime.now().isoformat()}
             
             if upload_to_github(label_path, ls_json, "Labels") and upload_to_github(f"{st.session_state.folder}/{current_img}_meta.json", meta_json, "Meta"):
-                st.session_state.img_idx += 1
-                st.session_state.start_time = time.time()
+                st.session_state.update({"img_idx": st.session_state.img_idx + 1, "start_time": time.time()})
                 st.rerun()
