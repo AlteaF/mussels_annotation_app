@@ -78,14 +78,23 @@ if st.session_state.img_idx >= len(images):
     st.success("All images complete!"); st.stop()
 
 current_img = images[st.session_state.img_idx]
-pil_img = Image.open(os.path.join(IMAGE_DIR, current_img))
+img_path = os.path.join(IMAGE_DIR, current_img)
+pil_img = Image.open(img_path)
+
+# 1. Get dimensions
 orig_w, orig_h = pil_img.size
 
-# Physical Resize for the UI
-MAX_WIDTH = 800 # Reduced slightly for better compatibility
+# 2. Force a web-friendly size (800px wide)
+MAX_WIDTH = 800
 scale = MAX_WIDTH / orig_w if orig_w > MAX_WIDTH else 1
 disp_w, disp_h = int(orig_w * scale), int(orig_h * scale)
-ui_img = pil_img.resize((disp_w, disp_h))
+
+# 3. Create the Base64 string once
+buffered = BytesIO()
+# We resize the actual image OBJECT before converting to Base64
+pil_img.resize((disp_w, disp_h)).save(buffered, format="PNG")
+img_str = base64.b64encode(buffered.getvalue()).decode()
+canvas_bg_url = f"data:image/png;base64,{img_str}"
 
 # --- STEP 3: RESUME LOGIC ---
 label_path = f"{st.session_state.folder}/{current_img}_labels.json"
@@ -111,6 +120,7 @@ if st.session_state.load_prev == True and existing_data:
 
 # --- STEP 4: UI & CANVAS ---
 st.write(f"**Current Image:** {current_img} ({st.session_state.img_idx+1}/{len(images)})")
+st.subheader(f"Annotating: {current_img}")
 
 if st.session_state.paused:
     st.warning("Paused.")
@@ -119,22 +129,27 @@ if st.session_state.paused:
         st.session_state.paused = False
         st.rerun()
 else:
-    # THE GHOST POINT FIX: Unique key per image
-    canvas_key = f"canvas_{current_img}_{st.session_state.img_idx}"
+    # Use a unique key that changes ONLY when the image index changes
+    c_key = f"canvas_v3_{st.session_state.img_idx}"
     
-    canvas_result = st_canvas(
-        fill_color="rgba(255, 165, 0, 0.3)",
-        stroke_width=2,
-        stroke_color="#FF0000",
-        background_image=ui_img, 
-        height=disp_h,
-        width=disp_w,
-        drawing_mode="point",
-        point_display_radius=5,
-        initial_drawing=initial_drawing,
-        key=canvas_key, # New key = Fresh Canvas
-        display_toolbar=True,
-    )
+    # We use a standard st.columns to constrain the width
+    col_c, _ = st.columns([10, 1]) 
+    with col_c:
+        canvas_result = st_canvas(
+            fill_color="rgba(255, 165, 0, 0.3)",
+            stroke_width=2,
+            stroke_color="#FF0000",
+            background_image=None,      # <--- SET THIS TO NONE
+            background_color=canvas_bg_url, # <--- TRICK: Pass the DataURL to background_color
+            height=disp_h,
+            width=disp_w,
+            drawing_mode="point",
+            point_display_radius=5,
+            initial_drawing=initial_drawing,
+            key=c_key,
+            update_streamlit=True,
+            display_toolbar=True,
+        )
 
     if st.sidebar.button("☕ Take a Break"):
         st.session_state.elapsed += (time.time() - st.session_state.start_time)
