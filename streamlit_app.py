@@ -40,7 +40,11 @@ def get_existing_annotation(path):
 
 # --- SESSION STATE ---
 if "user_name" not in st.session_state:
-    st.session_state.update({"user_name": None, "img_idx": 0, "paused": False, "elapsed": 0, "start_time": time.time(), "load_prev": False, "folder": None, "session_started": False})
+    st.session_state.update({
+        "user_name": None, "img_idx": 0, "paused": False, 
+        "elapsed": 0, "start_time": time.time(), "load_prev": False, 
+        "folder": None, "session_started": False
+    })
 
 # --- STEP 1: LOGIN ---
 if not st.session_state.session_started:
@@ -75,18 +79,13 @@ if st.session_state.img_idx >= len(images):
 
 current_img = images[st.session_state.img_idx]
 pil_img = Image.open(os.path.join(IMAGE_DIR, current_img))
-
-# Scaling for Browser Display
-MAX_WIDTH = 1000
 orig_w, orig_h = pil_img.size
+
+# --- FIX: Physically resize the image for the UI to prevent the "Height" Error ---
+MAX_WIDTH = 1000
 scale = MAX_WIDTH / orig_w if orig_w > MAX_WIDTH else 1
 disp_w, disp_h = int(orig_w * scale), int(orig_h * scale)
-
-# --- CRITICAL FIX: Convert PIL to Base64 for Canvas ---
-buffered = BytesIO()
-pil_img.save(buffered, format="JPEG")
-img_base64 = base64.b64encode(buffered.getvalue()).decode()
-canvas_bg_url = f"data:image/jpeg;base64,{img_base64}"
+ui_img = pil_img.resize((disp_w, disp_h))
 
 # --- STEP 3: RESUME LOGIC ---
 label_path = f"{st.session_state.folder}/{current_img}_labels.json"
@@ -95,14 +94,21 @@ initial_drawing = None
 
 if existing_data and not st.session_state.load_prev:
     st.info(f"Existing data found for {current_img}")
-    if st.button("Load Previous"): st.session_state.load_prev = True; st.rerun()
-    if st.button("New Version"): 
-        st.session_state.folder = f"{st.session_state.folder.split('_v')[0]}_v{int(re.search(r'_v(\d+)$', st.session_state.folder).group(1))+1 if re.search(r'_v(\d+)$', st.session_state.folder) else 2}"
-        st.session_state.load_prev = "fresh"; st.rerun()
+    c1, c2 = st.columns(2)
+    with c1:
+        if st.button("Load Previous"): st.session_state.load_prev = True; st.rerun()
+    with c2:
+        if st.button("New Version"): 
+            st.session_state.folder = f"{st.session_state.folder.split('_v')[0]}_v{int(re.search(r'_v(\d+)$', st.session_state.folder).group(1))+1 if re.search(r'_v(\d+)$', st.session_state.folder) else 2}"
+            st.session_state.load_prev = "fresh"; st.rerun()
     st.stop()
 
 if st.session_state.load_prev == True and existing_data:
-    initial_drawing = {"objects": [{"type": "circle", "left": (r["value"]["x"]*orig_w/100)*scale, "top": (r["value"]["y"]*orig_h/100)*scale, "radius": 4, "fill": "red"} for r in existing_data["annotations"][0]["result"]]}
+    # Map old coordinates to the NEW scaled UI size
+    initial_drawing = {"objects": [
+        {"type": "circle", "left": (r["value"]["x"] * orig_w / 100) * scale, "top": (r["value"]["y"] * orig_h / 100) * scale, "radius": 4, "fill": "red"} 
+        for r in existing_data["annotations"][0]["result"]
+    ]}
 
 # --- STEP 4: UI & CANVAS ---
 st.progress(st.session_state.img_idx / len(images))
@@ -118,7 +124,7 @@ if st.session_state.paused:
     st.warning("Paused.")
 else:
     canvas_result = st_canvas(
-        background_image=canvas_bg_url, # Using the Base64 String here
+        background_image=ui_img, # Pass the resized UI image
         initial_drawing=initial_drawing,
         drawing_mode="point",
         key="canvas",
@@ -130,14 +136,28 @@ else:
 
     # --- STEP 5: SAVE ---
     points = canvas_result.json_data["objects"] if canvas_result.json_data else []
-    if st.button("💾 Save & Next", disabled=(len(points) == 0), type="primary"):
-        ls_json = {
-            "data": {"image": canvas_bg_url, "filename": current_img},
-            "annotations": [{"result": [{"original_width": orig_w, "original_height": orig_h, "value": {"x": (p["left"]/scale)/orig_w*100, "y": (p["top"]/scale)/orig_h*100, "keypointlabels": ["mussel"]}, "from_name": "label", "to_name": "image", "type": "keypointlabels"} for p in points]}]
-        }
-        active_time = st.session_state.elapsed + (time.time() - st.session_state.start_time)
-        meta_json = {"image": current_img, "duration_sec": round(active_time, 2), "count": len(points), "timestamp": datetime.now().isoformat()}
-        
-        if upload_to_github(label_path, ls_json, "Labels") and upload_to_github(f"{st.session_state.folder}/{current_img}_meta.json", meta_json, "Meta"):
-            st.session_state.update({"img_idx": st.session_state.img_idx + 1, "elapsed": 0, "start_time": time.time(), "load_prev": False})
-            st.rerun()
+    if st.button("💾 Save & Next Image", disabled=(len(points) == 0), type="primary"):
+        with st.spinner("Saving..."):
+            # Use original PIL image for base64 so we don't lose quality in Label Studio
+            buf = BytesIO()
+            pil_img.save(buf, format="JPEG")
+            img_b64 = f"data:image/jpeg;base64,{base64.b64encode(buf.getvalue()).decode()}"
+
+            ls_json = {
+                "data": {"image": img_b64, "filename": current_img},
+                "annotations": [{"result": [{
+                    "original_width": orig_w, "original_height": orig_h,
+                    "value": {
+                        "x": (p["left"] / scale) / orig_w * 100, 
+                        "y": (p["top"] / scale) / orig_h * 100, 
+                        "keypointlabels": ["mussel"]
+                    },
+                    "from_name": "label", "to_name": "image", "type": "keypointlabels"
+                } for p in points]}]
+            }
+            active_time = st.session_state.elapsed + (time.time() - st.session_state.start_time)
+            meta_json = {"image": current_img, "duration_sec": round(active_time, 2), "count": len(points), "timestamp": datetime.now().isoformat()}
+            
+            if upload_to_github(label_path, ls_json, "Labels") and upload_to_github(f"{st.session_state.folder}/{current_img}_meta.json", meta_json, "Meta"):
+                st.session_state.update({"img_idx": st.session_state.img_idx + 1, "elapsed": 0, "start_time": time.time(), "load_prev": False})
+                st.rerun()
