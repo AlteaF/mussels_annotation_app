@@ -19,34 +19,40 @@ st.set_page_config(page_title="Mussel Annotator", layout="wide")
 # --- ADVANCED CSS INJECTION ---
 st.markdown("""
     <style>
-    /* 1. Fix the Top Padding so the header isn't cut off */
+    /* 1. Fix the Top Padding and overall width */
     .block-container {
-        padding-top: 3rem !important;
+        padding-top: 2rem !important;
         max-width: 98% !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
     }
 
-    /* 2. Hide the Class/Label Dropdown (since you only have one class) */
+    /* 2. Target the specific iframe for the annotator and force it to be huge */
+    iframe[title="streamlit_image_annotation.point_annotation.pointdet"] {
+        width: 100% !important;
+        height: 85vh !important; /* Sets height to 85% of the screen height */
+    }
+
+    /* 3. The "Flip" Trick: 
+       This targets the container holding the modes and the image. 
+       We try to reverse the column order so the controls go to the top. */
+    [data-testid="stVerticalBlock"] > div:has(iframe) {
+        display: flex !important;
+        flex-direction: column-reverse !important;
+    }
+
+    /* 4. Hide the Class selector only */
     div[data-testid="stSelectbox"] {
         display: none !important;
     }
 
-    /* 3. Re-style the Radio Buttons (Modes) and try to move them visually */
-    /* Note: Streamlit doesn't allow easy re-ordering of internal component HTML, 
-       so we make the "Save" button big and clear at the bottom instead. */
-    
-    .stButton button {
-        background-color: #ff4b4b !important;
-        color: white !important;
-        font-weight: bold !important;
-        height: 4rem !important;
-        border-radius: 10px !important;
-    }
-    
-    /* 4. Increase the font of the image counter */
+    /* 5. Clean up the header */
     .img-header {
-        font-size: 24px;
-        font-weight: bold;
-        margin-bottom: 10px;
+        font-size: 20px;
+        font-weight: 600;
+        color: #31333F;
+        margin-bottom: 0px;
+        padding-top: 0px;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -117,32 +123,32 @@ pil_img = Image.open(img_path)
 orig_w, orig_h = pil_img.size
 
 # --- STEP 3: ANNOTATION INTERFACE ---
-st.markdown(f'<p class="img-header">🖼️ Image: {current_img} ({st.session_state.img_idx+1}/{len(images)})</p>', unsafe_allow_html=True)
+with st.container():
+    st.markdown(f'<p class="img-header"> {current_img} ({st.session_state.img_idx+1}/{len(images)})</p>', unsafe_allow_html=True)
+    
+    label_path = f"{st.session_state.folder}/{current_img}_labels.json"
+    existing_data = get_existing_annotation(label_path)
+    pts_list, ids_list = [], []
 
-label_path = f"{st.session_state.folder}/{current_img}_labels.json"
-existing_data = get_existing_annotation(label_path)
-pts_list, ids_list = [], []
+    if existing_data:
+        for r in existing_data["annotations"][0]["result"]:
+            pts_list.append([r['value']['x'], r['value']['y']])
+            ids_list.append(0)
 
-if existing_data:
-    for r in existing_data["annotations"][0]["result"]:
-        pts_list.append([r['value']['x'], r['value']['y']])
-        ids_list.append(0)
-
-# Render the component
-# We keep the "Transform/Delete" mode visible because it's required to delete points,
-# but we move it to the sidebar if you want the image to be absolutely huge.
-new_labels = pointdet(
-    image_path=img_path,
-    label_list=['mussel'],
-    points=pts_list,
-    labels=ids_list,
-    use_space=True, 
-    key=f"det_vfinal_{st.session_state.img_idx}"
-)
+    # Calling the component
+    new_labels = pointdet(
+        image_path=img_path,
+        label_list=['mussel'],
+        points=pts_list,
+        labels=ids_list,
+        use_space=True, 
+        key=f"det_v7_{st.session_state.img_idx}"
+    )
 
 # --- STEP 4: SAVE ---
 if new_labels is not None:
     st.write(f"**Current Count:** {len(new_labels)} mussels")
+    st.markdown("<br>", unsafe_allow_html=True)
     if st.button("💾 SAVE & NEXT IMAGE", type="primary", use_container_width=True):
         with st.spinner("Uploading to GitHub..."):
             buf = BytesIO()
