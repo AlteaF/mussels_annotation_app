@@ -142,7 +142,7 @@ else:
         fill_color="rgba(255, 165, 0, 0.3)",
         stroke_width=2,
         stroke_color="#FF0000",
-        background_image=ui_img, 
+        background_image=pil_img, 
         height=disp_h,
         width=disp_w,
         drawing_mode="point",
