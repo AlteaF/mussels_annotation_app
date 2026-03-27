@@ -14,19 +14,32 @@ st.set_page_config(page_title="Mussel Annotator Pro", layout="wide")
 # --- CSS: CLEAN UI & NO FLASH ---
 st.markdown("""
     <style>
-    .block-container { padding-top: 1rem !important; max-width: 98% !important; }
-    [data-testid="stStatusWidget"] { display: none !important; }
-    .label-statement { font-size: 24px; font-weight: bold; color: #007BFF; margin-bottom: 5px; }
+    /* 1. Increase padding so text isn't cut off at the top */
+    .block-container { 
+        padding-top: 3.5rem !important; 
+        max-width: 98% !important; 
+    }
     
-    /* Highlighted Counter */
+    [data-testid="stStatusWidget"] { display: none !important; }
+    
+    .label-statement { 
+        font-size: 24px; 
+        font-weight: bold; 
+        color: #007BFF; 
+        margin-bottom: 5px; 
+    }
+    
+    /* 2. Added margin-top to ensure it's below the top bar */
     .counter-box { 
         background-color: #f0f2f6; 
-        padding: 10px; 
-        border-radius: 5px; 
-        border-left: 5px solid #007BFF;
-        margin-bottom: 20px;
-        font-size: 18px;
+        padding: 12px; 
+        border-radius: 8px; 
+        border-left: 6px solid #007BFF;
+        margin-top: 10px;
+        margin-bottom: 25px;
+        font-size: 19px;
         font-weight: bold;
+        box-shadow: 0px 2px 4px rgba(0,0,0,0.05);
     }
     
     .break-overlay {
@@ -75,7 +88,8 @@ if "points" not in st.session_state:
 
 # --- STEP 1: LOGIN & SESSION RESUME ---
 if not st.session_state.session_started:
-    st.header("🦪 Mussel Annotation Project")
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.header("🦪 Mussel Annotation Project", divider="rainbow")
     name_input = st.text_input("Enter your name:").strip()
     if name_input:
         res = github_request("GET", "")
