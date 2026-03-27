@@ -17,7 +17,18 @@ st.markdown("""
     .block-container { padding-top: 1rem !important; max-width: 98% !important; }
     [data-testid="stStatusWidget"] { display: none !important; }
     .label-statement { font-size: 24px; font-weight: bold; color: #007BFF; margin-bottom: 5px; }
-    .counter-text { font-size: 18px; color: #666; font-weight: 500; }
+    
+    /* Highlighted Counter */
+    .counter-box { 
+        background-color: #f0f2f6; 
+        padding: 10px; 
+        border-radius: 5px; 
+        border-left: 5px solid #007BFF;
+        margin-bottom: 20px;
+        font-size: 18px;
+        font-weight: bold;
+    }
+    
     .break-overlay {
         background-color: #f8d7da; color: #721c24; padding: 20px;
         border-radius: 10px; text-align: center; border: 2px solid #f5c6cb;
@@ -89,19 +100,18 @@ images = sorted([f for f in os.listdir(IMAGE_DIR) if f.lower().endswith(('.jpg',
 # COMPLETION PAGE
 if st.session_state.img_idx >= len(images):
     st.balloons()
-    st.markdown("---")
     st.markdown(f"""
         <div style="text-align: center; padding: 50px;">
             <h1 style="color: #28a745;">🎉 Session Complete!</h1>
             <p style="font-size: 20px;">You have successfully annotated all <b>{len(images)}</b> images.</p>
-            <p>Your data has been saved to your session folder: <b>{st.session_state.folder}</b></p>
+            <p>Data saved to: <b>{st.session_state.folder}</b></p>
         </div>
     """, unsafe_allow_html=True)
     
     if st.button("⬅️ Back to Last Image"):
         st.session_state.img_idx = len(images) - 1
         st.rerun()
-    if st.button("🚪 Start New Session / Logout"):
+    if st.button("🚪 Start New Session"):
         st.session_state.clear()
         st.rerun()
     st.stop()
@@ -110,8 +120,12 @@ if st.session_state.img_idx >= len(images):
 if st.session_state.img_idx < 0: st.session_state.img_idx = 0
 current_img = images[st.session_state.img_idx]
 
-# COUNTER AT TOP
-st.markdown(f'<p class="counter-text">You are at image {st.session_state.img_idx + 1} out of {len(images)}</p>', unsafe_allow_html=True)
+# --- THE COUNTER (Moved here to ensure visibility) ---
+st.markdown(f"""
+    <div class="counter-box">
+        📍 You are at image {st.session_state.img_idx + 1} out of {len(images)}
+    </div>
+    """, unsafe_allow_html=True)
 
 # LOAD DATA FROM GITHUB IF IMAGE CHANGED
 if st.session_state.current_loaded_img != current_img:
