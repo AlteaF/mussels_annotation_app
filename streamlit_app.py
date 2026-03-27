@@ -107,45 +107,63 @@ if st.session_state.current_loaded_img != current_img:
     st.session_state.current_loaded_img = current_img
 
 # --- STEP 4: DRAWING ---
+We use a copy to draw the points on top of the original image
 draw_img = pil_img.copy()
 draw = ImageDraw.Draw(draw_img)
-# Draw points
+
+# Dynamic radius based on image size so points aren't tiny or huge
+r = max(width, height) * 0.005 
+
 for p in st.session_state.points:
     px, py = (p[0] / 100) * width, (p[1] / 100) * height
-    r = max(width, height) * 0.005
-    draw.ellipse([px-r, py-r, px+r, py+r], fill="red", outline="white", width=2)
+    draw.ellipse([px-r, py-r, px+r, py+r], fill="red", outline="white", width=1)
 
 # --- STEP 5: UI LAYOUT ---
+# --- STEP 5: UI & INTERACTION ---
 st.subheader(f"🖼️ {current_img} ({st.session_state.img_idx+1}/{len(images)})")
 
-c_m1, c_m2, c_m3 = st.columns([3, 2, 5])
-st.session_state.mode = c_m1.radio("Mode", ["Add Points", "Delete Points"], horizontal=True, label_visibility="collapsed")
-if c_m2.button("🗑️ Reset Image"):
-    st.session_state.points = []
-    st.rerun()
+col_tools, col_stats = st.columns([1, 1])
+with col_tools:
+    st.session_state.mode = st.radio("Mode", ["Add Points", "Delete Points"], horizontal=True)
+with col_stats:
+    st.write(f"**Mussels found:** {len(st.session_state.points)}")
+    if st.button("🗑️ Reset Image"):
+        st.session_state.points = []
+        st.rerun()
 
-# IMPORTANT: Key is fixed per image index to prevent the "random reload" flash
+# --- THE FIX FOR SIZE & FLASHING ---
+# 1. We specify 'width=1000' (or similar) to force it to fit the screen.
+# 2. We store the 'value' and only update session_state if it's a NEW click.
+
 value = streamlit_image_coordinates(
     draw_img, 
-    key=f"fixed_annotator_{st.session_state.img_idx}"
+    width=1000, # Forces the image to fit within 1000px width; change to 800 or 1200 as needed
+    key=f"img_{st.session_state.img_idx}" 
 )
 
 if value:
-    # Logic to prevent reload loop: only act if click is new
+    # Calculate relative coordinates (0-100)
     click_x = (value["x"] / value["width"]) * 100
     click_y = (value["y"] / value["height"]) * 100
     
-    if st.session_state.mode == "Add Points":
-        # Only add if not already there (prevents double-triggering)
-        if not any(abs(p[0]-click_x) < 0.6 and abs(p[1]-click_y) < 0.6 for p in st.session_state.points):
-            st.session_state.points.append([click_x, click_y])
-            st.rerun()
-    else:
-        # Delete mode
-        new_pts = [p for p in st.session_state.points if not (abs(p[0]-click_x) < 2.0 and abs(p[1]-click_y) < 2.0)]
-        if len(new_pts) != len(st.session_state.points):
-            st.session_state.points = new_pts
-            st.rerun()
+    # Create a unique "click fingerprint" to prevent double-processing
+    click_id = f"{click_x:.2f}_{click_y:.2f}"
+    
+    if "last_click" not in st.session_state or st.session_state.last_click != click_id:
+        st.session_state.last_click = click_id
+        
+        if st.session_state.mode == "Add Points":
+            # Add point if it's not a duplicate
+            if not any(abs(p[0]-click_x) < 0.5 and abs(p[1]-click_y) < 0.5 for p in st.session_state.points):
+                st.session_state.points.append([click_x, click_y])
+                st.rerun() # We still need one rerun to show the red dot, but the 'key' keeps it stable
+        
+        elif st.session_state.mode == "Delete Points":
+            # Remove points near the click
+            new_pts = [p for p in st.session_state.points if not (abs(p[0]-click_x) < 2.0 and abs(p[1]-click_y) < 2.0)]
+            if len(new_pts) != len(st.session_state.points):
+                st.session_state.points = new_pts
+                st.rerun()
 
 st.write(f"**Mussels found:** {len(st.session_state.points)}")
 
