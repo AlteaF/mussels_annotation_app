@@ -107,7 +107,7 @@ if st.session_state.current_loaded_img != current_img:
     st.session_state.current_loaded_img = current_img
 
 # --- STEP 4: DRAWING ---
-We use a copy to draw the points on top of the original image
+#We use a copy to draw the points on top of the original image
 draw_img = pil_img.copy()
 draw = ImageDraw.Draw(draw_img)
 
