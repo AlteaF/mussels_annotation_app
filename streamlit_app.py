@@ -43,8 +43,16 @@ def upload_to_github(path, content_dict, message):
 def get_existing_annotation(path):
     res = github_request("GET", path)
     if res.status_code == 200:
-        content = json.loads(base64.b64decode(res.json()["content"]).decode())
-        return [[r['value']['x'], r['value']['y']] for r in content["annotations"][0]["result"]]
+        try:
+            content = json.loads(base64.b64decode(res.json()["content"]).decode())
+            # Handle both formats: the new list format and the old 'result' key format
+            if "annotations" in content and len(content["annotations"]) > 0:
+                ann = content["annotations"][0]
+                # Check if it's the 'result' list or just 'annotations' list
+                items = ann.get("result", content.get("annotations", []))
+                return [[r['value']['x'], r['value']['y']] for r in items if 'value' in r]
+        except Exception as e:
+            st.error(f"Error reading existing labels: {e}")
     return []
 
 # --- SESSION STATE ---
@@ -55,38 +63,34 @@ if "points" not in st.session_state:
         "active_start": None, "total_elapsed": 0.0, "on_break": False
     })
 
-# --- STEP 1: LOGIN & SESSION RESUME ---
+# --- STEP 1: LOGIN ---
 if not st.session_state.session_started:
     st.header("🦪 Mussel Annotation Project")
     name_input = st.text_input("Enter your name:").strip()
     if name_input:
         res = github_request("GET", "")
         existing = [f["name"] for f in res.json() if f["type"] == "dir" and f["name"].startswith(name_input)] if res.status_code == 200 else []
-        
         col1, col2 = st.columns(2)
         if existing:
             latest = sorted(existing)[-1]
             if col1.button(f"Continue ({latest})"):
                 res_f = github_request("GET", latest)
-                # Set index to the last labeled image
                 idx = len([f for f in res_f.json() if "_labels.json" in f["name"]]) if res_f.status_code == 200 else 0
                 st.session_state.update({"user_name": name_input, "folder": latest, "img_idx": idx, "session_started": True})
                 st.rerun()
-        
         if col2.button("Start New Session"):
             v_num = len(existing) + 1
             st.session_state.update({"user_name": name_input, "folder": f"{name_input}_v{v_num}", "img_idx": 0, "session_started": True})
             st.rerun()
     st.stop()
 
-# --- STEP 2: IMAGE & DATA LOADING ---
+# --- STEP 2: IMAGE LOADING ---
 images = sorted([f for f in os.listdir(IMAGE_DIR) if f.lower().endswith(('.jpg', '.jpeg', '.png'))])
 if st.session_state.img_idx < 0: st.session_state.img_idx = 0
 if st.session_state.img_idx >= len(images): st.success("Finished!"); st.stop()
 
 current_img = images[st.session_state.img_idx]
 
-# Only load from GitHub if we just switched images
 if st.session_state.current_loaded_img != current_img:
     path = f"{st.session_state.folder}/{current_img}_labels.json"
     st.session_state.points = get_existing_annotation(path)
@@ -97,7 +101,7 @@ if st.session_state.current_loaded_img != current_img:
 pil_img = Image.open(os.path.join(IMAGE_DIR, current_img)).convert("RGB")
 orig_w, orig_h = pil_img.size
 
-# --- STEP 3: THE FRAGMENT (ZERO FLASH) ---
+# --- STEP 3: THE FRAGMENT ---
 @st.fragment
 def annotation_engine():
     st.markdown('<p class="label-statement">Labeling: Mussel</p>', unsafe_allow_html=True)
@@ -138,30 +142,31 @@ def annotation_engine():
             st.session_state.last_click = click_hash
             if st.session_state.active_start is None: st.session_state.active_start = time.time()
             
-            # Targeted Delete logic
+            # --- TARGETED DELETE LOGIC ---
             found_idx = -1
+            # We check if click is within 2.5% of any dot
             for i, p in enumerate(st.session_state.points):
-                if abs(p[0]-cx) < 2.0 and abs(p[1]-cy) < 2.0:
-                    found_idx = i; break
+                if abs(p[0]-cx) < 2.5 and abs(p[1]-cy) < 2.5:
+                    found_idx = i
+                    break
             
-            if found_idx != -1: st.session_state.points.pop(found_idx)
-            else: st.session_state.points.append([cx, cy])
+            if found_idx != -1:
+                st.session_state.points.pop(found_idx) # Remove dot
+            else:
+                st.session_state.points.append([cx, cy]) # Add dot
             st.rerun()
 
 annotation_engine()
 
-# --- STEP 4: NAVIGATION & SAVE ---
+# --- STEP 4: NAVIGATION ---
 st.markdown("---")
 col_prev, col_save = st.columns([1, 4])
 
 def save_current_work():
-    # Calculate time
     dur = st.session_state.total_elapsed
     if st.session_state.active_start: dur += (time.time() - st.session_state.active_start)
-    
     res_list = [{"value": {"x": p[0], "y": p[1], "label": "mussel"}} for p in st.session_state.points]
     meta = {"image": current_img, "count": len(st.session_state.points), "duration_sec": round(dur, 2), "annotator": st.session_state.user_name}
-    
     upload_to_github(f"{st.session_state.folder}/{current_img}_labels.json", {"image": current_img, "annotations": res_list}, "Save")
     upload_to_github(f"{st.session_state.folder}/{current_img}_meta.json", meta, "Meta")
 
