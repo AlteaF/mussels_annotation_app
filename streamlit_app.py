@@ -143,21 +143,21 @@ if st.session_state.img_idx < 0: st.session_state.img_idx = 0
 current_img = images[st.session_state.img_idx]
 
 # --- THE COUNTER (Moved here to ensure visibility) ---
-st.markdown(f"""
-    <div class="counter-box">
-        📍 You are at image {st.session_state.img_idx + 1} out of {len(images)}
-    </div>
-    """, unsafe_allow_html=True)
+
 st.markdown("""You are showed an image to annotate. 
 \n Please click on each mussel you see in the image. Every time you click, it takes a second for the dot to appear. Thank you for your patience. \n
 The :green[timer] starts from the first click on a mussel. \n
-If you are :pink[done] with the image, click :pink["Save and next"], and the next image will be shown. \n
+If you are :violet[done] with the image, click :violet["Save and next"], and the next image will be shown. \n
 If you would like to take a :orange[break], please click on the "take a break button", so the timer stops. \n
 If you need to look at :blue[previous] images, you can click on the :blue["previous"] button and the previous image will be shown. \n
 If you make an :red[error] for a point, you can click on the point and it will be deleted. 
 
 You can see your progress at the top of the image. """)
-
+st.markdown(f"""
+    <div class="counter-box">
+        You are at image {st.session_state.img_idx + 1} out of {len(images)}
+    </div>
+    """, unsafe_allow_html=True)
 # LOAD DATA FROM GITHUB IF IMAGE CHANGED
 if st.session_state.current_loaded_img != current_img:
     path = f"{st.session_state.folder}/{current_img}_labels.json"
@@ -176,7 +176,7 @@ def annotation_engine():
     
     if st.session_state.on_break:
         st.markdown('<div class="break-overlay">☕ ON BREAK: Timer Paused</div>', unsafe_allow_html=True)
-        if st.button("▶️ RE-START LABELING", use_container_width=True):
+        if st.button("RE-START LABELING", use_container_width=True):
             st.session_state.on_break = False
             if st.session_state.points: st.session_state.active_start = time.time()
             st.rerun()
@@ -185,13 +185,13 @@ def annotation_engine():
     c_info, c_break, c_reset = st.columns([3, 1, 1])
     c_info.write(f"**Current File:** {current_img} | **Total Points:** {len(st.session_state.points)}")
     
-    if c_break.button("⏸️ Take a Break"):
+    if c_break.button("TAKE A BREAK"):
         if st.session_state.active_start:
             st.session_state.total_elapsed += (time.time() - st.session_state.active_start)
             st.session_state.active_start = None
         st.session_state.on_break = True
         st.rerun()
-    if c_reset.button("🗑️ Reset Image"):
+    if c_reset.button("Reset Image"):
         st.session_state.points = []; st.rerun()
 
     draw_img = pil_img.copy()
@@ -234,12 +234,12 @@ def save_current_work():
     upload_to_github(f"{st.session_state.folder}/{current_img}_labels.json", {"image": current_img, "annotations": res_list}, "Save")
     upload_to_github(f"{st.session_state.folder}/{current_img}_meta.json", meta, "Meta")
 
-if col_prev.button("⬅️ PREVIOUS", use_container_width=True):
+if col_prev.button("PREVIOUS", use_container_width=True):
     save_current_work()
     st.session_state.img_idx -= 1
     st.rerun()
 
-if col_save.button("💾 SAVE & NEXT ➡️", type="primary", use_container_width=True):
+if col_save.button("SAVE & NEXT", type="primary", use_container_width=True):
     save_current_work()
     st.session_state.img_idx += 1
     st.rerun()
