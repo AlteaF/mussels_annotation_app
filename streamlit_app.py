@@ -17,6 +17,7 @@ st.markdown("""
     .block-container { padding-top: 1rem !important; max-width: 98% !important; }
     [data-testid="stStatusWidget"] { display: none !important; }
     .label-statement { font-size: 24px; font-weight: bold; color: #007BFF; margin-bottom: 5px; }
+    .counter-text { font-size: 18px; color: #666; font-weight: 500; }
     .break-overlay {
         background-color: #f8d7da; color: #721c24; padding: 20px;
         border-radius: 10px; text-align: center; border: 2px solid #f5c6cb;
@@ -45,10 +46,8 @@ def get_existing_annotation(path):
     if res.status_code == 200:
         try:
             content = json.loads(base64.b64decode(res.json()["content"]).decode())
-            # Handle both formats: the new list format and the old 'result' key format
             if "annotations" in content and len(content["annotations"]) > 0:
                 ann = content["annotations"][0]
-                # Check if it's the 'result' list or just 'annotations' list
                 items = ann.get("result", content.get("annotations", []))
                 return [[r['value']['x'], r['value']['y']] for r in items if 'value' in r]
         except Exception as e:
@@ -63,7 +62,7 @@ if "points" not in st.session_state:
         "active_start": None, "total_elapsed": 0.0, "on_break": False
     })
 
-# --- STEP 1: LOGIN ---
+# --- STEP 1: LOGIN & SESSION RESUME ---
 if not st.session_state.session_started:
     st.header("🦪 Mussel Annotation Project")
     name_input = st.text_input("Enter your name:").strip()
@@ -84,13 +83,37 @@ if not st.session_state.session_started:
             st.rerun()
     st.stop()
 
-# --- STEP 2: IMAGE LOADING ---
+# --- STEP 2: IMAGE LOADING & COMPLETION CHECK ---
 images = sorted([f for f in os.listdir(IMAGE_DIR) if f.lower().endswith(('.jpg', '.jpeg', '.png'))])
-if st.session_state.img_idx < 0: st.session_state.img_idx = 0
-if st.session_state.img_idx >= len(images): st.success("Finished!"); st.stop()
 
+# COMPLETION PAGE
+if st.session_state.img_idx >= len(images):
+    st.balloons()
+    st.markdown("---")
+    st.markdown(f"""
+        <div style="text-align: center; padding: 50px;">
+            <h1 style="color: #28a745;">🎉 Session Complete!</h1>
+            <p style="font-size: 20px;">You have successfully annotated all <b>{len(images)}</b> images.</p>
+            <p>Your data has been saved to your session folder: <b>{st.session_state.folder}</b></p>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    if st.button("⬅️ Back to Last Image"):
+        st.session_state.img_idx = len(images) - 1
+        st.rerun()
+    if st.button("🚪 Start New Session / Logout"):
+        st.session_state.clear()
+        st.rerun()
+    st.stop()
+
+# NAVIGATION BOUNDS
+if st.session_state.img_idx < 0: st.session_state.img_idx = 0
 current_img = images[st.session_state.img_idx]
 
+# COUNTER AT TOP
+st.markdown(f'<p class="counter-text">You are at image {st.session_state.img_idx + 1} out of {len(images)}</p>', unsafe_allow_html=True)
+
+# LOAD DATA FROM GITHUB IF IMAGE CHANGED
 if st.session_state.current_loaded_img != current_img:
     path = f"{st.session_state.folder}/{current_img}_labels.json"
     st.session_state.points = get_existing_annotation(path)
@@ -101,7 +124,7 @@ if st.session_state.current_loaded_img != current_img:
 pil_img = Image.open(os.path.join(IMAGE_DIR, current_img)).convert("RGB")
 orig_w, orig_h = pil_img.size
 
-# --- STEP 3: THE FRAGMENT ---
+# --- STEP 3: THE FRAGMENT (ZERO FLASH) ---
 @st.fragment
 def annotation_engine():
     st.markdown('<p class="label-statement">Labeling: Mussel</p>', unsafe_allow_html=True)
@@ -115,15 +138,15 @@ def annotation_engine():
         st.stop()
 
     c_info, c_break, c_reset = st.columns([3, 1, 1])
-    c_info.write(f"**Image {st.session_state.img_idx+1}/{len(images)}:** {current_img} | **Count:** {len(st.session_state.points)}")
+    c_info.write(f"**Current File:** {current_img} | **Total Points:** {len(st.session_state.points)}")
     
-    if c_break.button("⏸️ Break"):
+    if c_break.button("⏸️ Take a Break"):
         if st.session_state.active_start:
             st.session_state.total_elapsed += (time.time() - st.session_state.active_start)
             st.session_state.active_start = None
         st.session_state.on_break = True
         st.rerun()
-    if c_reset.button("🗑️ Reset"):
+    if c_reset.button("🗑️ Reset Image"):
         st.session_state.points = []; st.rerun()
 
     draw_img = pil_img.copy()
@@ -142,23 +165,19 @@ def annotation_engine():
             st.session_state.last_click = click_hash
             if st.session_state.active_start is None: st.session_state.active_start = time.time()
             
-            # --- TARGETED DELETE LOGIC ---
+            # TARGETED DELETE LOGIC
             found_idx = -1
-            # We check if click is within 2.5% of any dot
             for i, p in enumerate(st.session_state.points):
                 if abs(p[0]-cx) < 2.5 and abs(p[1]-cy) < 2.5:
-                    found_idx = i
-                    break
+                    found_idx = i; break
             
-            if found_idx != -1:
-                st.session_state.points.pop(found_idx) # Remove dot
-            else:
-                st.session_state.points.append([cx, cy]) # Add dot
+            if found_idx != -1: st.session_state.points.pop(found_idx)
+            else: st.session_state.points.append([cx, cy])
             st.rerun()
 
 annotation_engine()
 
-# --- STEP 4: NAVIGATION ---
+# --- STEP 4: NAVIGATION & SAVE ---
 st.markdown("---")
 col_prev, col_save = st.columns([1, 4])
 
