@@ -145,7 +145,7 @@ current_img = images[st.session_state.img_idx]
 # --- THE COUNTER (Moved here to ensure visibility) ---
 
 st.markdown("""
-<div class="counter-box">
+
 You are showed an image to annotate. 
 \n Please click on each mussel you see in the image. Every time you click, it takes a second for the dot to appear. Thank you for your patience. \n
 The :green[timer] starts from the first click on a mussel. \n
@@ -155,7 +155,7 @@ If you need to look at :blue[previous] images, you can click on the :blue["previ
 If you make an :red[error] for a point, you can click on the point and it will be deleted. 
 
 You can see your progress at the top of the image. 
-</div>""")
+""")
 st.markdown(f"""
     <div class="counter-box">
         You are at image {st.session_state.img_idx + 1} out of {len(images)}
