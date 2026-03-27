@@ -90,6 +90,12 @@ if "points" not in st.session_state:
 if not st.session_state.session_started:
     st.markdown("<br>", unsafe_allow_html=True)
     st.header("🦪 Mussel Annotation Project", divider="rainbow")
+    st.markdown("Hello and welcome to my annotation app. \n Thank you for participating and helping with my Master Thesis!!")
+    st.markdown("The goal of this process is to assess the performance of human annotation for mussels in the Limfjord.")
+    st.markdown("This will help me analyse the annotator performance and assess the time required to annotate each image")
+    st.markdown("Please note that the time required for annotation is recorded, and please take as much time as you need.")
+    st.markdown("Please use the same name every time you log in. \n If you have annotated images before, you will be asked if you want to continue with the previous work or start a new one.")
+    st.markdown("")
     name_input = st.text_input("Enter your name:").strip()
     if name_input:
         res = github_request("GET", "")
