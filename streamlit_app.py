@@ -1,0 +1,176 @@
+import streamlit as st
+from streamlit_image_coordinates import streamlit_image_coordinates
+from PIL import Image, ImageDraw
+import os, json, time, requests, base64
+from datetime import datetime
+
+# --- CONFIG ---
+IMAGE_DIR = "images"
+REPO_OWNER_REPO = st.secrets["DATA_REPO"]
+GITHUB_TOKEN = st.secrets["GITHUB_TOKEN"]
+
+st.set_page_config(page_title="Mussel Annotator Pro", layout="wide")
+
+# --- CSS: CLEAN UI & NO FLASH ---
+st.markdown("""
+    <style>
+    .block-container { padding-top: 1rem !important; max-width: 98% !important; }
+    [data-testid="stStatusWidget"] { display: none !important; }
+    .label-statement { font-size: 24px; font-weight: bold; color: #007BFF; margin-bottom: 5px; }
+    .break-overlay {
+        background-color: #f8d7da; color: #721c24; padding: 20px;
+        border-radius: 10px; text-align: center; border: 2px solid #f5c6cb;
+        margin: 20px 0; font-size: 20px; font-weight: bold;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+# --- GITHUB HELPERS ---
+def github_request(method, path, json_data=None):
+    url = f"https://api.github.com/repos/{REPO_OWNER_REPO}/contents/{path}"
+    headers = {"Authorization": f"token {GITHUB_TOKEN}", "Accept": "application/vnd.github.v3+json"}
+    if method == "GET": return requests.get(url, headers=headers)
+    return requests.put(url, headers=headers, json=json_data)
+
+def upload_to_github(path, content_dict, message):
+    res = github_request("GET", path)
+    sha = res.json().get("sha") if res.status_code == 200 else None
+    content_base64 = base64.b64encode(json.dumps(content_dict, indent=2).encode()).decode()
+    data = {"message": message, "content": content_base64}
+    if sha: data["sha"] = sha
+    return github_request("PUT", path, data).status_code in [200, 201]
+
+def get_existing_annotation(path):
+    res = github_request("GET", path)
+    if res.status_code == 200:
+        content = json.loads(base64.b64decode(res.json()["content"]).decode())
+        return [[r['value']['x'], r['value']['y']] for r in content["annotations"][0]["result"]]
+    return []
+
+# --- SESSION STATE ---
+if "points" not in st.session_state:
+    st.session_state.update({
+        "user_name": None, "img_idx": 0, "folder": None, "session_started": False, 
+        "points": [], "last_click": None, "current_loaded_img": None,
+        "active_start": None, "total_elapsed": 0.0, "on_break": False
+    })
+
+# --- STEP 1: LOGIN & SESSION RESUME ---
+if not st.session_state.session_started:
+    st.header("🦪 Mussel Annotation Project")
+    name_input = st.text_input("Enter your name:").strip()
+    if name_input:
+        res = github_request("GET", "")
+        existing = [f["name"] for f in res.json() if f["type"] == "dir" and f["name"].startswith(name_input)] if res.status_code == 200 else []
+        
+        col1, col2 = st.columns(2)
+        if existing:
+            latest = sorted(existing)[-1]
+            if col1.button(f"Continue ({latest})"):
+                res_f = github_request("GET", latest)
+                # Set index to the last labeled image
+                idx = len([f for f in res_f.json() if "_labels.json" in f["name"]]) if res_f.status_code == 200 else 0
+                st.session_state.update({"user_name": name_input, "folder": latest, "img_idx": idx, "session_started": True})
+                st.rerun()
+        
+        if col2.button("Start New Session"):
+            v_num = len(existing) + 1
+            st.session_state.update({"user_name": name_input, "folder": f"{name_input}_v{v_num}", "img_idx": 0, "session_started": True})
+            st.rerun()
+    st.stop()
+
+# --- STEP 2: IMAGE & DATA LOADING ---
+images = sorted([f for f in os.listdir(IMAGE_DIR) if f.lower().endswith(('.jpg', '.jpeg', '.png'))])
+if st.session_state.img_idx < 0: st.session_state.img_idx = 0
+if st.session_state.img_idx >= len(images): st.success("Finished!"); st.stop()
+
+current_img = images[st.session_state.img_idx]
+
+# Only load from GitHub if we just switched images
+if st.session_state.current_loaded_img != current_img:
+    path = f"{st.session_state.folder}/{current_img}_labels.json"
+    st.session_state.points = get_existing_annotation(path)
+    st.session_state.current_loaded_img = current_img
+    st.session_state.total_elapsed = 0.0
+    st.session_state.active_start = None
+
+pil_img = Image.open(os.path.join(IMAGE_DIR, current_img)).convert("RGB")
+orig_w, orig_h = pil_img.size
+
+# --- STEP 3: THE FRAGMENT (ZERO FLASH) ---
+@st.fragment
+def annotation_engine():
+    st.markdown('<p class="label-statement">Labeling: Mussel</p>', unsafe_allow_html=True)
+    
+    if st.session_state.on_break:
+        st.markdown('<div class="break-overlay">☕ ON BREAK: Timer Paused</div>', unsafe_allow_html=True)
+        if st.button("▶️ RE-START LABELING", use_container_width=True):
+            st.session_state.on_break = False
+            if st.session_state.points: st.session_state.active_start = time.time()
+            st.rerun()
+        st.stop()
+
+    c_info, c_break, c_reset = st.columns([3, 1, 1])
+    c_info.write(f"**Image {st.session_state.img_idx+1}/{len(images)}:** {current_img} | **Count:** {len(st.session_state.points)}")
+    
+    if c_break.button("⏸️ Break"):
+        if st.session_state.active_start:
+            st.session_state.total_elapsed += (time.time() - st.session_state.active_start)
+            st.session_state.active_start = None
+        st.session_state.on_break = True
+        st.rerun()
+    if c_reset.button("🗑️ Reset"):
+        st.session_state.points = []; st.rerun()
+
+    draw_img = pil_img.copy()
+    draw = ImageDraw.Draw(draw_img)
+    r = max(orig_w, orig_h) * 0.007
+    for p in st.session_state.points:
+        px, py = (p[0]/100)*orig_w, (p[1]/100)*orig_h
+        draw.ellipse([px-r, py-r, px+r, py+r], fill="red", outline="white", width=3)
+
+    value = streamlit_image_coordinates(draw_img, width=1200, key=f"img_{st.session_state.img_idx}")
+
+    if value:
+        cx, cy = (value["x"]/value["width"])*100, (value["y"]/value["height"])*100
+        click_hash = f"{cx:.2f}{cy:.2f}"
+        if st.session_state.last_click != click_hash:
+            st.session_state.last_click = click_hash
+            if st.session_state.active_start is None: st.session_state.active_start = time.time()
+            
+            # Targeted Delete logic
+            found_idx = -1
+            for i, p in enumerate(st.session_state.points):
+                if abs(p[0]-cx) < 2.0 and abs(p[1]-cy) < 2.0:
+                    found_idx = i; break
+            
+            if found_idx != -1: st.session_state.points.pop(found_idx)
+            else: st.session_state.points.append([cx, cy])
+            st.rerun()
+
+annotation_engine()
+
+# --- STEP 4: NAVIGATION & SAVE ---
+st.markdown("---")
+col_prev, col_save = st.columns([1, 4])
+
+def save_current_work():
+    # Calculate time
+    dur = st.session_state.total_elapsed
+    if st.session_state.active_start: dur += (time.time() - st.session_state.active_start)
+    
+    res_list = [{"value": {"x": p[0], "y": p[1], "label": "mussel"}} for p in st.session_state.points]
+    meta = {"image": current_img, "count": len(st.session_state.points), "duration_sec": round(dur, 2), "annotator": st.session_state.user_name}
+    
+    upload_to_github(f"{st.session_state.folder}/{current_img}_labels.json", {"image": current_img, "annotations": res_list}, "Save")
+    upload_to_github(f"{st.session_state.folder}/{current_img}_meta.json", meta, "Meta")
+
+if col_prev.button("⬅️ PREVIOUS", use_container_width=True):
+    save_current_work()
+    st.session_state.img_idx -= 1
+    st.rerun()
+
+if col_save.button("💾 SAVE & NEXT ➡️", type="primary", use_container_width=True):
+    save_current_work()
+    st.session_state.img_idx += 1
+    st.rerun()
