@@ -94,7 +94,8 @@ if not st.session_state.session_started:
     st.markdown("The goal of this process is to assess the performance of human annotation for mussels in the Limfjord.")
     st.markdown("This will help me analyse the annotator performance and assess the time required to annotate each image")
     st.markdown("Please note that the time required for annotation is recorded, and please take as much time as you need.")
-    st.markdown("Please use the same name every time you log in. \n If you have annotated images before, you will be asked if you want to continue with the previous work or start a new one.")
+    st.markdown("First thing you are asked to write your name in the field below. Use the same name every time you log in.")
+    st.markdown("If you have annotated images before, you will be asked if you want to continue with the previous work or start a new one.")
     st.markdown("")
     name_input = st.text_input("Enter your name:").strip()
     if name_input:
@@ -123,6 +124,7 @@ if st.session_state.img_idx >= len(images):
     st.markdown(f"""
         <div style="text-align: center; padding: 50px;">
             <h1 style="color: #28a745;">🎉 Session Complete!</h1>
+            <p style="font-size: 20px;">Thank you for helping with with the annotation, your work is really apreciated!</p>
             <p style="font-size: 20px;">You have successfully annotated all <b>{len(images)}</b> images.</p>
             <p>Data saved to: <b>{st.session_state.folder}</b></p>
         </div>
@@ -146,6 +148,15 @@ st.markdown(f"""
         📍 You are at image {st.session_state.img_idx + 1} out of {len(images)}
     </div>
     """, unsafe_allow_html=True)
+st.markdown("""You are showed an image to annotate. 
+\n Please click on each mussel you see in the image. Every time you click, it takes a second for the dot to appear. Thank you for your patience. \n
+The :green[timer] starts from the first click on a mussel. \n
+If you are :pink[done] with the image, click :pink["Save and next"], and the next image will be shown. \n
+If you would like to take a :orange[break], please click on the "take a break button", so the timer stops. \n
+If you need to look at :blue[previous] images, you can click on the :blue["previous"] button and the previous image will be shown. \n
+If you make an :red[error] for a point, you can click on the point and it will be deleted. 
+
+You can see your progress at the top of the image. """)
 
 # LOAD DATA FROM GITHUB IF IMAGE CHANGED
 if st.session_state.current_loaded_img != current_img:
