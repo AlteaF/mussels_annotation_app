@@ -89,13 +89,13 @@ if "points" not in st.session_state:
 # --- STEP 1: LOGIN & SESSION RESUME ---
 if not st.session_state.session_started:
     st.markdown("<br>", unsafe_allow_html=True)
-    st.header("🦪 Mussel Annotation Project", divider="rainbow")
-    st.markdown("Hello and welcome to my annotation app. \n Thank you for participating and helping with my Master Thesis!", text_alignment = "center")
+    st.header("🦪 Mussel Annotation Project", divider="rainbow", text_alignment = "center")
+    st.subheader("Hello and welcome to my annotation app. \n Thank you for participating and helping with my Master Thesis!",divider= "orange", text_alignment = "center")
     st.markdown("This project is focused on assessing annotation perfromance on **Blue Mussels** images collected in the Limfjord, in Northern Jutland.")
     st.markdown("By annotating the images that will be presented, you will help me in the analysis of the data, which will be used for my Master Thesis.")
     st.markdown("The analysis will focus on mussel counting and time of annotation, thus the time will be recorded. Please take as much time as you need.")
     st.markdown("A \"Break\" function will be provided, such that the time will be stopped when needed.")
-    st.markdown("Below, you can find a field in which to write your name. The name will be used to save your annotations, and to collect previous annotations, if you haven't finished in a previous session, or need to correct something.") 
+    st.markdown("Below, you can find a field in which to writeyour name. The name will be used to save your annotations, and to collect previous annotations, if you haven't finished in a previous session, or need to correct something.") 
     st.markdown("You will be asked if you want to start a new session or continue with the previous.")
     name_input = st.text_input("Enter your name:").strip()
     if name_input:
