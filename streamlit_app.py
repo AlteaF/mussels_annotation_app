@@ -25,16 +25,16 @@ st.markdown("""
     .label-statement { 
         font-size: 24px; 
         font-weight: bold; 
-        color: #007BFF; 
+        color: #FF5C00; 
         margin-bottom: 5px; 
     }
     
     /* 2. Added margin-top to ensure it's below the top bar */
     .counter-box { 
-        background-color: #f0f2f6; 
+        background-color: #00F2E8; 
         padding: 12px; 
         border-radius: 8px; 
-        border-left: 6px solid #007BFF;
+        border-left: 6px solid #FF5C00;
         margin-top: 10px;
         margin-bottom: 25px;
         font-size: 19px;
@@ -43,7 +43,7 @@ st.markdown("""
     }
     
     .break-overlay {
-        background-color: #f8d7da; color: #721c24; padding: 20px;
+        background-color: ##F5A038; color: #F27013; padding: 20px;
         border-radius: 10px; text-align: center; border: 2px solid #f5c6cb;
         margin: 20px 0; font-size: 20px; font-weight: bold;
     }
@@ -90,13 +90,14 @@ if "points" not in st.session_state:
 if not st.session_state.session_started:
     st.markdown("<br>", unsafe_allow_html=True)
     st.header("🦪 Mussel Annotation Project", divider="rainbow")
-    st.markdown("Hello and welcome to my annotation app. \n Thank you for participating and helping with my Master Thesis!!")
-    st.markdown("The goal of this process is to assess the performance of human annotation for mussels in the Limfjord.")
-    st.markdown("This will help me analyse the annotator performance and assess the time required to annotate each image")
-    st.markdown("Please note that the time required for annotation is recorded, and please take as much time as you need.")
-    st.markdown("First thing you are asked to write your name in the field below. Use the same name every time you log in.")
-    st.markdown("If you have annotated images before, you will be asked if you want to continue with the previous work or start a new one.")
-    st.markdown("")
+    st.markdown("Hello and welcome to my annotation app. \n Thank you for participating and helping with my Master Thesis!!", text_alignment = "center")
+    st.markdown("""This project is focused on assessing annotation perfromance on **Blue Mussels** images collected in the Limfjord, in Northern Jutland.\n 
+    By annotating the images that will be presented, you will help me in the analysis of the data, which will be used for my Master Thesis. \n
+    The analysis will focus on mussel counting and time of annotation, thus the time will be recorded. Please take as much time as you need. \n
+    A "Break" function will be provided, such that the time will be stopped when needed. \n
+
+    Below, you can find a field in which to write your name. The name will be used to save your annotations, and to collect previous annotations, if you haven't finished in a previous session, or need to correct something. 
+    You will be asked if you want to start a new session or continue with the previous. """)
     name_input = st.text_input("Enter your name:").strip()
     if name_input:
         res = github_request("GET", "")
