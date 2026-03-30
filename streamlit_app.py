@@ -9,7 +9,7 @@ IMAGE_DIR = "images"
 REPO_OWNER_REPO = st.secrets["DATA_REPO"]
 GITHUB_TOKEN = st.secrets["GITHUB_TOKEN"]
 
-st.set_page_config(page_title="Mussel Annotator Pro", layout="wide")
+st.set_page_config(page_title="Mussel Annotator Project", layout="wide")
 
 # --- CSS: CLEAN UI & NO FLASH ---
 st.markdown("""
@@ -212,7 +212,7 @@ def annotation_engine():
     r = max(orig_w, orig_h) * 0.007
     for p in st.session_state.points:
         px, py = (p[0]/100)*orig_w, (p[1]/100)*orig_h
-        draw.ellipse([px-r, py-r, px+r, py+r], fill="red", outline="white", width=3)
+        draw.ellipse([px-r, py-r, px+r, py+r], fill="red", outline="white", width=1)
 
     value = streamlit_image_coordinates(draw_img, width=1200, key=f"img_{st.session_state.img_idx}")
 
