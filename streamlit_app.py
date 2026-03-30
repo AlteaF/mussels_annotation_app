@@ -123,7 +123,7 @@ if st.session_state.img_idx >= len(images):
     st.balloons()
     st.markdown(f"""
         <div style="text-align: center; padding: 50px;">
-            <h1 style="color: #28a745;">🎉 Session Complete!</h1>
+            <h1 style="color: #FF5B00;">🎉 Session Complete!</h1>
             <p style="font-size: 20px;">Thank you for helping with with the annotation, your work is really apreciated!</p>
             <p style="font-size: 20px;">You have successfully annotated all <b>{len(images)}</b> images.</p>
             <p>Data saved to: <b>{st.session_state.folder}</b></p>
@@ -133,7 +133,7 @@ if st.session_state.img_idx >= len(images):
     if st.button("⬅️ Back to Last Image"):
         st.session_state.img_idx = len(images) - 1
         st.rerun()
-    if st.button("🚪 Start New Session"):
+    if st.button("Start New Session"):
         st.session_state.clear()
         st.rerun()
     st.stop()
@@ -144,18 +144,28 @@ current_img = images[st.session_state.img_idx]
 
 # --- THE COUNTER (Moved here to ensure visibility) ---
 
-st.markdown("""
+with st.expander("📖 Click here for the Project Guide & Instructions", expanded=True):
+    st.subheader("Annotation guidelines and general informations", divider= "orange")
 
-You are showed an image to annotate. 
-\n Please click on each mussel you see in the image. Every time you click, it takes a second for the dot to appear. Thank you for your patience. \n
-The :green[timer] starts from the first click on a mussel. \n
-If you are :violet[done] with the image, click :violet["Save and next"], and the next image will be shown. \n
-If you would like to take a :orange[break], please click on the "take a break button", so the timer stops. \n
-If you need to look at :blue[previous] images, you can click on the :blue["previous"] button and the previous image will be shown. \n
-If you make an :red[error] for a point, you can click on the point and it will be deleted. 
+    st.markdown("""
+    You are showed an image to annotate. 
+    * To annotate an image, click in the center the subject (Mussels only).
+    * Please click on each mussel you see in the image. Every time you click, it takes a second for the dot to appear. Thank you for your patience.
+    * If you make an :red[error] for a point, you can click on the point and it will be deleted. 
+    * The :green[timer] starts automatically at the first click on a mussel.
+    * If you would like to take a :violet[break], please click on the "take a break button", so the timer stops.
 
-You can see your progress at the top of the image. 
-""")
+    * If you are :orange[done] with the image, click :orange["Save and next"], and the next image will be shown.
+    * If you need to look at :blue[previous] images, you can click on the :blue["previous"] button and the previous image will be shown. \n
+    
+    You can see your progress at the top of the image. 
+    """)
+    with st.expander("Visual examples of mussels for clarity")
+        ann_ex = "https://github.com/AlteaF/mussels_annotation_app/blob/master/example_of_point_annotations.png"
+        st.image(ann_ex, caption= "Example of annotated mussels")
+        IMAGE_URL = "https://github.com/AlteaF/mussels_annotation_app/blob/master/example_of_live_mussel.png"
+        st.image(IMAGE_URL, caption= "Example of live mussels. \n The white tentacles are a visual clue of live mussels.")
+    
 st.markdown(f"""
     <div class="counter-box">
         You are at image {st.session_state.img_idx + 1} out of {len(images)}
