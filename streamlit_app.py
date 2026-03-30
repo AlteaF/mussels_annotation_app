@@ -161,7 +161,7 @@ with st.expander("📖 Click here for the Project Guide & Instructions", expande
     You can see your progress at the top of the image. 
     """)
     with st.expander("Visual examples of mussels for clarity"):
-        ann_ex = "https://github.com/AlteaF/mussels_annotation_app/blob/master/example_of_point_annotations.png"
+        ann_ex = "example_of_point_annotations.png"
         st.image(ann_ex, caption= "Example of annotated mussels")
         IMAGE_URL = "https://github.com/AlteaF/mussels_annotation_app/blob/master/example_of_live_mussel.png"
         st.image(IMAGE_URL, caption= "Example of live mussels. \n The white tentacles are a visual clue of live mussels.")
