@@ -163,8 +163,8 @@ with st.expander("📖 Click here for the Project Guide & Instructions", expande
     with st.expander("Visual examples of mussels for clarity"):
         ann_ex = "example_of_point_annotations.png"
         st.image(ann_ex, caption= "Example of annotated mussels")
-        IMAGE_URL = "https://github.com/AlteaF/mussels_annotation_app/blob/master/example_of_live_mussel.png"
-        st.image(IMAGE_URL, caption= "Example of live mussels. \n The white tentacles are a visual clue of live mussels.")
+        ex_live = "example_of_live_mussel.png"
+        st.image(ex_live, caption= "Example of live mussels. \n The white tentacles are a visual clue of live mussels.")
     
 st.markdown(f"""
     <div class="counter-box">
