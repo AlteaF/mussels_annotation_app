@@ -209,7 +209,7 @@ def annotation_engine():
 
     draw_img = pil_img.copy()
     draw = ImageDraw.Draw(draw_img)
-    r = max(orig_w, orig_h) * 0.007
+    r = max(orig_w, orig_h) * 0.0035
     for p in st.session_state.points:
         px, py = (p[0]/100)*orig_w, (p[1]/100)*orig_h
         draw.ellipse([px-r, py-r, px+r, py+r], fill="red", outline="white", width=1)
