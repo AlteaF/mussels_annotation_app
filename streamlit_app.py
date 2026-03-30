@@ -35,48 +35,61 @@ st.markdown(f"""
     
     [data-testid="stStatusWidget"] {{ display: none !important; }}
 
-    /* This targets the main app background */
+    /* Main App Background */
     .stApp {{
         background-color: {primary_bg} !important;
         color: {text_col} !important;
     }}
-    /* FIX FOR BUTTONS (Continue, Start Session, etc.) */
+
+    /* --- EXPANDER FIX (TARGETING THE CLOSED STATE) --- */
+    div[data-testid="stExpander"] {{
+        background-color: {secondary_bg} !important;
+        border: 1px solid rgba(255, 92, 0, 0.2) !important;
+        border-radius: 8px !important;
+    }}
+
+    /* The header/clickable area */
+    div[data-testid="stExpander"] summary {{
+        background-color: {secondary_bg} !important;
+        color: {text_col} !important;
+    }}
+
+    /* The icon/arrow */
+    div[data-testid="stExpander"] svg {{
+        fill: {text_col} !important;
+    }}
+
+    /* The content inside when open */
+    div[data-testid="stExpander"] [data-testid="stExpanderDetails"] {{
+        background-color: {primary_bg} !important;
+        color: {text_col} !important;
+    }}
+
+    /* --- BUTTONS --- */
     div.stButton > button {{
         background-color: {secondary_bg} !important;
         color: {text_col} !important;
-        border: 1px solid #FF5C00 !important; /* Optional: adds an orange border */
+        border: 1px solid #FF5C00 !important;
     }}
 
-    /* FIX FOR BUTTON HOVER */
     div.stButton > button:hover {{
         border-color: #FF5C00 !important;
         color: #FF5C00 !important;
         background-color: {primary_bg} !important;
     }}
 
-    /* FIX FOR EXPANDERS */
-    .streamlit-expanderHeader {{
-        background-color: {secondary_bg} !important;
-        color: {text_col} !important;
-        border-bottom: 1px solid rgba(255, 92, 0, 0.3) !important;
-    }}
-    
-    .streamlit-expanderContent {{
-        background-color: {primary_bg} !important;
-        color: {text_col} !important;
-    }}
-
-    /* FIX FOR TEXT INPUT BOXES */
+    /* --- INPUT BOXES --- */
     div[data-testid="stTextInput"] input {{
         background-color: {secondary_bg} !important;
         color: {text_col} !important;
         border: 1px solid rgba(255, 92, 0, 0.5) !important;
     }}
 
-    /* Target the labels specifically to ensure they aren't hidden */
-    label, .stMarkdown p {{
+    /* --- GENERAL TEXT --- */
+    label, .stMarkdown p, .stMarkdown li {{
         color: {text_col} !important;
     }}
+
     .label-statement {{ 
         font-size: 24px; 
         font-weight: bold; 
@@ -107,10 +120,6 @@ st.markdown(f"""
         margin: 20px 0; 
         font-size: 20px; 
         font-weight: bold;
-    }}
-
-    .stExpander, .stTextInput {{
-        color: {text_col} !important;
     }}
     </style>
     """, unsafe_allow_html=True)
