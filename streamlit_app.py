@@ -198,7 +198,7 @@ def annotation_engine():
     c_info, c_break, c_reset = st.columns([3, 1, 1])
     c_info.write(f"**Current File:** {current_img} | **Total Points:** {len(st.session_state.points)}")
     
-    if c_break.button("TAKE A BREAK", type="Primary"):
+    if c_break.button("TAKE A BREAK", type="primary"):
         if st.session_state.active_start:
             st.session_state.total_elapsed += (time.time() - st.session_state.active_start)
             st.session_state.active_start = None
@@ -247,7 +247,7 @@ def save_current_work():
     upload_to_github(f"{st.session_state.folder}/{current_img}_labels.json", {"image": current_img, "annotations": res_list}, "Save")
     upload_to_github(f"{st.session_state.folder}/{current_img}_meta.json", meta, "Meta")
 
-if col_prev.button("PREVIOUS", type="Secondary", use_container_width=True):
+if col_prev.button("PREVIOUS", type="secondary", use_container_width=True):
     save_current_work()
     st.session_state.img_idx -= 1
     st.rerun()
