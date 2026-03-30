@@ -11,27 +11,46 @@ GITHUB_TOKEN = st.secrets["GITHUB_TOKEN"]
 
 st.set_page_config(page_title="Mussel Annotator Project", layout="wide")
 
-# --- CSS: CLEAN UI & NO FLASH ---
-st.markdown("""
+
+theme_choice = st.sidebar.radio("Choose Theme", ["Light", "Dark"])
+
+if theme_choice == "Dark":
+    primary_bg = "#0E1117"
+    secondary_bg = "#262730"
+    text_col = "#FAFAFA"
+    card_shadow = "rgba(255, 255, 255, 0.1)"
+else:
+    primary_bg = "#FFFFFF"
+    secondary_bg = "#F0F2F6"
+    text_col = "#31333F"
+    card_shadow = "rgba(0, 0, 0, 0.05)"
+    
+# Note the f before the triple quotes!
+st.markdown(f"""
     <style>
-    /* 1. Increase padding so text isn't cut off at the top */
-    .block-container { 
+    .block-container {{ 
         padding-top: 3.5rem !important; 
         max-width: 98% !important; 
-    }
+    }}
     
-    [data-testid="stStatusWidget"] { display: none !important; }
+    [data-testid="stStatusWidget"] {{ display: none !important; }}
+
+    /* This targets the main app background */
+    .stApp {{
+        background-color: {primary_bg} !important;
+        color: {text_col} !important;
+    }}
     
-    .label-statement { 
+    .label-statement {{ 
         font-size: 24px; 
         font-weight: bold; 
         color: #FF5C00; 
         margin-bottom: 5px; 
-    }
+    }}
     
-    /* 2. Added margin-top to ensure it's below the top bar */
-    .counter-box { 
-        background-color: #FFFFFF; 
+    .counter-box {{ 
+        background-color: {secondary_bg}; 
+        color: {text_col};
         padding: 12px; 
         border-radius: 8px; 
         border-left: 6px solid #FF5C00;
@@ -39,14 +58,24 @@ st.markdown("""
         margin-bottom: 25px;
         font-size: 19px;
         font-weight: bold;
-        box-shadow: 0px 2px 4px rgba(0,0,0,0.05);
-    }
+        box-shadow: 0px 2px 4px {card_shadow};
+    }}
     
-    .break-overlay {
-        background-color: ##F5A038; color: #F27013; padding: 20px;
-        border-radius: 10px; text-align: center; border: 2px solid #f5c6cb;
-        margin: 20px 0; font-size: 20px; font-weight: bold;
-    }
+    .break-overlay {{
+        background-color: #F5A038; 
+        color: #F27013; 
+        padding: 20px;
+        border-radius: 10px; 
+        text-align: center; 
+        border: 2px solid #f5c6cb;
+        margin: 20px 0; 
+        font-size: 20px; 
+        font-weight: bold;
+    }}
+
+    .stExpander, .stTextInput {{
+        color: {text_col} !important;
+    }}
     </style>
     """, unsafe_allow_html=True)
 
