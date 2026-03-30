@@ -40,7 +40,43 @@ st.markdown(f"""
         background-color: {primary_bg} !important;
         color: {text_col} !important;
     }}
+    /* FIX FOR BUTTONS (Continue, Start Session, etc.) */
+    div.stButton > button {{
+        background-color: {secondary_bg} !important;
+        color: {text_col} !important;
+        border: 1px solid #FF5C00 !important; /* Optional: adds an orange border */
+    }}
+
+    /* FIX FOR BUTTON HOVER */
+    div.stButton > button:hover {{
+        border-color: #FF5C00 !important;
+        color: #FF5C00 !important;
+        background-color: {primary_bg} !important;
+    }}
+
+    /* FIX FOR EXPANDERS */
+    .streamlit-expanderHeader {{
+        background-color: {secondary_bg} !important;
+        color: {text_col} !important;
+        border-bottom: 1px solid rgba(255, 92, 0, 0.3) !important;
+    }}
     
+    .streamlit-expanderContent {{
+        background-color: {primary_bg} !important;
+        color: {text_col} !important;
+    }}
+
+    /* FIX FOR TEXT INPUT BOXES */
+    div[data-testid="stTextInput"] input {{
+        background-color: {secondary_bg} !important;
+        color: {text_col} !important;
+        border: 1px solid rgba(255, 92, 0, 0.5) !important;
+    }}
+
+    /* Target the labels specifically to ensure they aren't hidden */
+    label, .stMarkdown p {{
+        color: {text_col} !important;
+    }}
     .label-statement {{ 
         font-size: 24px; 
         font-weight: bold; 
