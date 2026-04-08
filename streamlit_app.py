@@ -171,6 +171,7 @@ if not st.session_state.session_started:
     st.markdown("The analysis will focus on mussel counting and time of annotation, thus the time will be recorded. Please take as much time as you need.")
     st.markdown("A \"Break\" function will be provided, such that the time will be stopped when needed.")
     st.markdown("For Dark Mode, click on the >> on the top left corner")
+    st.markdown("The annotation Guidelines will be shown at the top of the page. You can keep the description open or close it by clicking on the >")
     st.markdown("Below, you can find a field in which to write your name. The name will be used to save your annotations and to collect previous ones. If you haven't finished in a previous session, or need to correct something choose \"Continue\".") 
     st.markdown("If it is your first time annotating but you are offered to continue with the annotations, please refresh the page and use a different name. Please remember if you use Capital letters or lower case ones.")
     st.markdown("""
@@ -226,7 +227,7 @@ current_img = images[st.session_state.img_idx]
 
 # --- THE COUNTER (Moved here to ensure visibility) ---
 
-with st.expander("📖 Click here for the Project Guide & Instructions", expanded=True):
+with st.expander("**📖 Click here for the Project Guide & Instructions**", expanded=True):
     st.subheader("Annotation guidelines and general informations", divider= "orange")
 
     st.markdown("""
@@ -241,7 +242,8 @@ with st.expander("📖 Click here for the Project Guide & Instructions", expande
     * The :green[timer] starts automatically at the first click on a mussel.
     * If you would like to take a :violet-background[break], please click on the "take a break button", so the timer stops.
 
-    * If you are :orange[done] with the image, click :orange["Save and next"], and the next image will be shown.
+    * If you are :orange[done] with the image, click :orange["Save and next"], and the next image will be shown. 
+    * Remember to click :orange["Save and next"] if you plan on closing the app, otherwise your annotations will be lost!
     * If you need to look at :blue[previous] images, you can click on the :blue["previous"] button and the previous image will be shown. \n
     
     You can see your progress at the top of the image. 
@@ -314,7 +316,7 @@ def annotation_engine():
             # TARGETED DELETE LOGIC
             found_idx = -1
             for i, p in enumerate(st.session_state.points):
-                if abs(p[0]-cx) < 2.5 and abs(p[1]-cy) < 2.5:
+                if abs(p[0]-cx) < 1 and abs(p[1]-cy) < 1:
                     found_idx = i; break
             
             if found_idx != -1: st.session_state.points.pop(found_idx)
