@@ -171,11 +171,12 @@ if not st.session_state.session_started:
     st.markdown("A \"Break\" function will be provided, such that the time will be stopped when needed.")
     st.markdown("Below, you can find a field in which to write your name. The name will be used to save your annotations, and to collect previous annotations, if you haven't finished in a previous session, or need to correct something.") 
     st.markdown("You will be asked if you want to start a new session or continue with the previous. If you insert your name, and you are prompted to continue with annotations, but it is your first time, please refresh the page and use a different name. ")
-    st.markdown("""Please insert your name followed by a underscore (_) and one of three acronyms: 
-                * MB for Marine Biologist
-                * CV for Computer Vision expert or Data Scientist
-                * NP for anyone not belonging to the above categories
-                """)
+    st.markdown("""
+    Please insert your name followed by a underscore (_) and one of three acronyms: 
+    * MB for Marine Biologist
+    * CV for Computer Vision expert or Data Scientist
+    * NP for anyone not belonging to the above categories
+    """)
     name_input = st.text_input("Enter your name:").strip()
     if name_input:
         res = github_request("GET", "")
