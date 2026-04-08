@@ -165,12 +165,17 @@ if not st.session_state.session_started:
     st.markdown("<br>", unsafe_allow_html=True)
     st.header("🦪 Mussel Annotation Project", divider="rainbow", text_alignment = "center")
     st.subheader("Hello and welcome to my annotation app. \n Thank you for participating and helping with my Master Thesis!",divider= "orange", text_alignment = "center")
-    st.markdown("This project is focused on assessing annotation perfromance on **Blue Mussels** images collected in the Limfjord, in Northern Jutland.")
-    st.markdown("By annotating the images that will be presented, you will help me in the analysis of the data, which will be used for my Master Thesis.")
+    st.markdown("This project is focused on assessing annotation perfromance on **Mussels** images collected in the Limfjord, in Northern Jutland.")
+    st.markdown("By annotating the images that will be presented, you will help me in the analysis of the data, which will be used for my Thesis.")
     st.markdown("The analysis will focus on mussel counting and time of annotation, thus the time will be recorded. Please take as much time as you need.")
     st.markdown("A \"Break\" function will be provided, such that the time will be stopped when needed.")
-    st.markdown("Below, you can find a field in which to writeyour name. The name will be used to save your annotations, and to collect previous annotations, if you haven't finished in a previous session, or need to correct something.") 
-    st.markdown("You will be asked if you want to start a new session or continue with the previous.")
+    st.markdown("Below, you can find a field in which to write your name. The name will be used to save your annotations, and to collect previous annotations, if you haven't finished in a previous session, or need to correct something.") 
+    st.markdown("You will be asked if you want to start a new session or continue with the previous. If you insert your name, and you are prompted to continue with annotations, but it is your first time, please refresh the page and use a different name. ")
+    st.markdown("""Please insert your name followed by a underscore (_) and one of three acronyms: 
+                * MB for Marine Biologist
+                * CV for Computer Vision expert or Data Scientist
+                * NP for anyone not belonging to the above categories
+                """)
     name_input = st.text_input("Enter your name:").strip()
     if name_input:
         res = github_request("GET", "")
@@ -223,6 +228,10 @@ with st.expander("📖 Click here for the Project Guide & Instructions", expande
 
     st.markdown("""
     You are showed an image to annotate. 
+    Your goal is to identify ** Live Mussels** in the images, and put a point on each of them.  \n 
+    A Live Mussel is defined as a Mussel that has the two parts of the shell that are clearly attached together, possibly with white tentacles coming out of the slightly open shell. 
+    A clearly dead mussel would be only one part of the shell, opened and clearly empty.
+    Please refer to the examples if you have doubts.
     * To annotate an image, click in the center the subject (Mussels only).
     * Please click on each mussel you see in the image. Every time you click, it takes a second for the dot to appear. Thank you for your patience.
     * If you make an :red[error] for a point, you can click on the point and it will be deleted. 
@@ -237,8 +246,10 @@ with st.expander("📖 Click here for the Project Guide & Instructions", expande
     with st.expander("Visual examples of mussels for clarity"):
         ann_ex = "example_of_point_annotations.png"
         st.image(ann_ex, caption= "Example of annotated mussels")
-        ex_live = "example_of_live_mussel.png"
-        st.image(ex_live, caption= "Example of live mussels. \n The white tentacles are a visual clue of live mussels.")
+        ex_live = "example_of_reasonably_live_mussel.png"
+        st.image(ex_live, caption= "Example of live mussels. \n The two parts of the shell are attached and tentcles are coming out")
+        ex_empty = "example_of_empty_shell.png"
+        st.image(ex_live, caption= "Example of empty shell. \n The two parts are attached but there is nothing inside. \n Otherwise, if there is only one part of the shell and it is empty.")
     
 st.markdown(f"""
     <div class="counter-box">
