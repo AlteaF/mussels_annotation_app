@@ -170,7 +170,7 @@ if not st.session_state.session_started:
     st.markdown("The analysis will focus on mussel counting and time of annotation, thus the time will be recorded. Please take as much time as you need.")
     st.markdown("A \"Break\" function will be provided, such that the time will be stopped when needed.")
     st.markdown("Below, you can find a field in which to write your name. The name will be used to save your annotations, and to collect previous annotations, if you haven't finished in a previous session, or need to correct something.") 
-    st.markdown("You will be asked if you want to start a new session or continue with the previous. If you insert your name, and you are prompted to continue with annotations, but it is your first time, please refresh the page and use a different name. ")
+    st.markdown("You will be asked if you want to start a new session or continue with the previous. If it is your first time annotating but you are offered to continue with the annotations, please refresh the page and use a different name. ")
     st.markdown("""
     Please insert your name followed by a underscore (_) and one of three acronyms: 
     * MB for Marine Biologist
@@ -229,7 +229,7 @@ with st.expander("📖 Click here for the Project Guide & Instructions", expande
 
     st.markdown("""
     You are showed an image to annotate. 
-    Your goal is to identify ** Live Mussels** in the images, and put a point on each of them.  \n 
+    Your goal is to identify **Live Mussels** in the images, and put a point on each of them.  \n 
     A Live Mussel is defined as a Mussel that has the two parts of the shell that are clearly attached together, possibly with white tentacles coming out of the slightly open shell. 
     A clearly dead mussel would be only one part of the shell, opened and clearly empty.
     Please refer to the examples if you have doubts.
@@ -237,7 +237,7 @@ with st.expander("📖 Click here for the Project Guide & Instructions", expande
     * Please click on each mussel you see in the image. Every time you click, it takes a second for the dot to appear. Thank you for your patience.
     * If you make an :red[error] for a point, you can click on the point and it will be deleted. 
     * The :green[timer] starts automatically at the first click on a mussel.
-    * If you would like to take a :violet[break], please click on the "take a break button", so the timer stops.
+    * If you would like to take a :violet-background[break], please click on the "take a break button", so the timer stops.
 
     * If you are :orange[done] with the image, click :orange["Save and next"], and the next image will be shown.
     * If you need to look at :blue[previous] images, you can click on the :blue["previous"] button and the previous image will be shown. \n
