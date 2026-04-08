@@ -175,9 +175,9 @@ if not st.session_state.session_started:
     st.markdown("If it is your first time annotating but you are offered to continue with the annotations, please refresh the page and use a different name. Please remember if you use Capital letters or lower case ones.")
     st.markdown("""
     Please insert your name followed by an underscore (_) and one of three acronyms: 
-    * ***MB*** for Marine Biologist
-    * ***CV*** for Computer Vision expert or Data Scientist
-    * ***NP*** for anyone not belonging to the above categories
+    * ***MB*** - for Marine Biologist
+    * ***CV*** - for Computer Vision expert or Data Scientist
+    * ***NP*** - for anyone not belonging to the above categories
     """)
     name_input = st.text_input("Enter your name:").strip()
     if name_input:
@@ -233,7 +233,7 @@ with st.expander("📖 Click here for the Project Guide & Instructions", expande
     You are showed an image to annotate. 
     Your goal is to identify **Live Mussels** in the images, and put a point on each of them.  \n 
     A Live Mussel is defined as a Mussel that has the two parts of the shell that are clearly attached together, possibly with white tentacles coming out of the slightly open shell. 
-    A clearly dead mussel would be only one part of the shell, opened and clearly empty.
+    A clearly dead mussel would be only one part of the shell, and/or opened and clearly empty.
     Please refer to the examples if you have doubts.
     * To annotate an image, click in the center the subject (Mussels only).
     * Please click on each mussel you see in the image. Every time you click, it takes a second for the dot to appear. Thank you for your patience.
