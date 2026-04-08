@@ -170,6 +170,7 @@ if not st.session_state.session_started:
     st.markdown("Please finish the annotations by April 24th")
     st.markdown("The analysis will focus on mussel counting and time of annotation, thus the time will be recorded. Please take as much time as you need.")
     st.markdown("A \"Break\" function will be provided, such that the time will be stopped when needed.")
+    st.markdown("For Dark Mode, click on the >> on the top left corner")
     st.markdown("Below, you can find a field in which to write your name. The name will be used to save your annotations, and to collect previous annotations, if you haven't finished in a previous session, or need to correct something.") 
     st.markdown("You will be asked if you want to start a new session or continue with the previous. If it is your first time annotating but you are offered to continue with the annotations, please refresh the page and use a different name. ")
     st.markdown("""
