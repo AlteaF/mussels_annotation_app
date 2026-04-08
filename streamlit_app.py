@@ -238,7 +238,8 @@ with st.expander("**📖 Click here for the Project Guide & Instructions**", exp
     Please refer to the examples if you have doubts.
     * To annotate an image, click in the center the subject (Mussels only).
     * Please click on each mussel you see in the image. Every time you click, it takes a second for the dot to appear. Thank you for your patience.
-    * If you make an :red[error] for a point, you can click on the point and it will be deleted. 
+    * :red[**Attention!!**] : The image might flash after every added point. Please be aware in case of flashing sensitivity!
+    * If you make an :background-red[error] for a point, you can click on the point and it will be deleted. 
     * The :green[timer] starts automatically at the first click on a mussel.
     * If you would like to take a :violet-background[break], please click on the "take a break button", so the timer stops.
 
