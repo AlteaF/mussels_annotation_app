@@ -174,10 +174,10 @@ if not st.session_state.session_started:
     st.markdown("Below, you can find a field in which to write your name. The name will be used to save your annotations and to collect previous ones. If you haven't finished in a previous session, or need to correct something choose \"Continue\".") 
     st.markdown("If it is your first time annotating but you are offered to continue with the annotations, please refresh the page and use a different name. Please remember if you use Capital letters or lower case ones.")
     st.markdown("""
-    Please insert your name followed by a underscore (_) and one of three acronyms: 
-    * MB for Marine Biologist
-    * CV for Computer Vision expert or Data Scientist
-    * NP for anyone not belonging to the above categories
+    Please insert your name followed by an underscore (_) and one of three acronyms: 
+    * ***MB*** for Marine Biologist
+    * ***CV*** for Computer Vision expert or Data Scientist
+    * ***NP*** for anyone not belonging to the above categories
     """)
     name_input = st.text_input("Enter your name:").strip()
     if name_input:
