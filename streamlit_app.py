@@ -249,7 +249,7 @@ with st.expander("📖 Click here for the Project Guide & Instructions", expande
         st.image(ann_ex, caption= "Example of annotated mussels")
         ex_live = "reasonably live.jpg"
         st.image(ex_live, caption= "Example of live mussels. \n The two parts of the shell are attached and tentcles are coming out")
-        ex_empty = "empty.png"
+        ex_empty = "empty.jpg"
         st.image(ex_empty, caption= "Example of empty shell. \n The two parts are attached but there is nothing inside. \n Otherwise, if there is only one part of the shell and it is empty.")
     
 st.markdown(f"""
