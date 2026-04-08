@@ -286,7 +286,8 @@ def annotation_engine():
         st.stop()
 
     c_info, c_break, c_reset = st.columns([3, 1, 1])
-    c_info.write(f"**Current File:** **Total Points Found:** {len(st.session_state.points)} \t **Remember to save the file before closing the page**")
+    c_info.write(f"**Current File:** **Total Points Found:** {len(st.session_state.points)}")
+    st.markdown("**Remember to save the file before closing the page**")
     
     if c_break.button("TAKE A BREAK", type="primary"):
         if st.session_state.active_start:
