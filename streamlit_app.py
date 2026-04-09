@@ -369,7 +369,7 @@ def save_current_work():
     
     # --- 2. IMAGE TO BASE64 ---
     buffered = io.BytesIO()
-    # JPEG is recommended to keep GitHub file sizes under control
+    # Ensure pil_img is the original image object
     pil_img.save(buffered, format="JPEG", quality=85) 
     img_str = base64.b64encode(buffered.getvalue()).decode()
     image_base64_uri = f"data:image/jpeg;base64,{img_str}"
@@ -379,21 +379,22 @@ def save_current_work():
     for i, p in enumerate(st.session_state.points):
         res_list.append({
             "id": f"point_{i}",
-            "type": "keypoint",
+            # CRITICAL: Must be 'keypointlabels' to avoid the green screen
+            "type": "keypointlabels", 
             "value": {
                 "x": p[0], 
                 "y": p[1], 
-                "width": 100,
-                "keypointlabels": ["mussel"]
+                "width": 0.5, # Small dot size (percentage of image)
+                "keypointlabels": ["Mussel"] # Must match XML exactly
             },
-            "to_name": "image",
-            "from_name": "label"
+            "to_name": "img-1",   # Must match XML <Image name="...">
+            "from_name": "kp-1"   # Must match XML <KeyPointLabels name="...">
         })
 
     # This dictionary is specifically for Label Studio
     ls_formatted_json = {
         "data": {
-            "image": image_base64_uri 
+            "img": image_base64_uri 
         },
         "annotations": [{
             "result": res_list
@@ -401,7 +402,6 @@ def save_current_work():
     }
 
     # --- 4. CLEAN METADATA ---
-    # This dictionary is for your separate tracking file
     meta = {
         "image_filename": current_img,
         "count": len(st.session_state.points),
@@ -411,14 +411,12 @@ def save_current_work():
     }
 
     # --- 5. UPLOAD BOTH TO GITHUB ---
-    # Save the heavy Label Studio JSON (Points + Image)
     upload_to_github(
         f"{st.session_state.folder}/{current_img}_labels.json", 
         ls_formatted_json, 
         "Save LS format with Base64"
     )
     
-    # Save the lightweight Meta JSON (Stats only)
     upload_to_github(
         f"{st.session_state.folder}/{current_img}_meta.json", 
         meta, 
