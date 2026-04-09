@@ -152,6 +152,18 @@ def get_existing_annotation(path):
             st.error(f"Error reading existing labels: {e}")
     return []
 
+def upload_comment_to_github(path, text_content):
+    # Encode the plain text to base64
+    content_base64 = base64.b64encode(text_content.encode()).decode()
+    
+    # Check if file exists to get SHA (standard GitHub API procedure)
+    res = github_request("GET", path)
+    sha = res.json().get("sha") if res.status_code == 200 else None
+    
+    data = {"message": "User comment", "content": content_base64}
+    if sha: data["sha"] = sha
+    
+    return github_request("PUT", path, data).status_code in [200, 201]
 # --- SESSION STATE ---
 if "points" not in st.session_state:
     st.session_state.update({
@@ -206,14 +218,31 @@ if st.session_state.img_idx >= len(images):
     st.balloons()
     st.markdown(f"""
         <div style="text-align: center; padding: 50px;">
-            <h1 style="color: #FF5B00;">🎉 Session Complete!</h1>
+            <h1 style="color: #FF5B00;"> Session Complete!</h1>
             <p style="font-size: 20px;">Thank you for helping with with the annotation, your work is really apreciated!</p>
             <p style="font-size: 20px;">You have successfully annotated all <b>{len(images)}</b> images.</p>
             <p>Data saved to: <b>{st.session_state.folder}</b></p>
         </div>
     """, unsafe_allow_html=True)
+    st.divider()
+    st.subheader("Feedback")
+    st.write("If you have any feedback about the process or any other comment, I would really appreciate it!")
     
-    if st.button("⬅️ Back to Last Image"):
+    user_comment = st.text_area("Your comments:", height=150, placeholder="Type here...")
+    
+    if st.button("Submit Comment"):
+        if user_comment.strip():
+            comment_path = f"{st.session_state.folder}/feedback_comment.txt"
+            success = upload_comment_to_github(comment_path, user_comment)
+            if success:
+                st.success("Comment saved! Thank you.")
+            else:
+                st.error("Failed to save comment to GitHub.")
+        else:
+            st.warning("Please write something before submitting.")
+
+    st.divider()
+    if st.button("Back to Last Image"):
         st.session_state.img_idx = len(images) - 1
         st.rerun()
     if st.button("Start New Session"):
@@ -279,7 +308,7 @@ def annotation_engine():
     st.markdown('<p class="label-statement">Labeling: Mussel</p>', unsafe_allow_html=True)
     
     if st.session_state.on_break:
-        st.markdown('<div class="break-overlay">☕ ON BREAK: Timer Paused</div>', unsafe_allow_html=True)
+        st.markdown('<div class="break-overlay"> ON BREAK: Timer Paused</div>', unsafe_allow_html=True)
         if st.button("RE-START LABELING", use_container_width=True):
             st.session_state.on_break = False
             if st.session_state.points: st.session_state.active_start = time.time()
