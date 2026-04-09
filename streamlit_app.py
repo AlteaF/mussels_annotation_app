@@ -3,6 +3,7 @@ from streamlit_image_coordinates import streamlit_image_coordinates
 from PIL import Image, ImageDraw
 import os, json, time, requests, base64
 from datetime import datetime
+import io
 
 # --- CONFIG ---
 IMAGE_DIR = "images"
@@ -361,12 +362,68 @@ st.markdown("---")
 col_prev, col_save = st.columns([1, 4])
 
 def save_current_work():
+    # --- 1. TIME CALCULATION ---
     dur = st.session_state.total_elapsed
-    if st.session_state.active_start: dur += (time.time() - st.session_state.active_start)
-    res_list = [{"value": {"x": p[0], "y": p[1], "label": "mussel"}} for p in st.session_state.points]
-    meta = {"image": current_img, "count": len(st.session_state.points), "duration_sec": round(dur, 2), "annotator": st.session_state.user_name}
-    upload_to_github(f"{st.session_state.folder}/{current_img}_labels.json", {"image": current_img, "annotations": res_list}, "Save")
-    upload_to_github(f"{st.session_state.folder}/{current_img}_meta.json", meta, "Meta")
+    if st.session_state.active_start: 
+        dur += (time.time() - st.session_state.active_start)
+    
+    # --- 2. IMAGE TO BASE64 ---
+    buffered = io.BytesIO()
+    # JPEG is recommended to keep GitHub file sizes under control
+    pil_img.save(buffered, format="JPEG", quality=85) 
+    img_str = base64.b64encode(buffered.getvalue()).decode()
+    image_base64_uri = f"data:image/jpeg;base64,{img_str}"
+
+    # --- 3. LABEL STUDIO FORMATTING ---
+    res_list = []
+    for i, p in enumerate(st.session_state.points):
+        res_list.append({
+            "id": f"point_{i}",
+            "type": "keypoint",
+            "value": {
+                "x": p[0], 
+                "y": p[1], 
+                "width": 100,
+                "keypointlabels": ["mussel"]
+            },
+            "to_name": "image",
+            "from_name": "label"
+        })
+
+    # This dictionary is specifically for Label Studio
+    ls_formatted_json = {
+        "data": {
+            "image": image_base64_uri 
+        },
+        "annotations": [{
+            "result": res_list
+        }]
+    }
+
+    # --- 4. CLEAN METADATA ---
+    # This dictionary is for your separate tracking file
+    meta = {
+        "image_filename": current_img,
+        "count": len(st.session_state.points),
+        "duration_sec": round(dur, 2),
+        "annotator": st.session_state.user_name,
+        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    }
+
+    # --- 5. UPLOAD BOTH TO GITHUB ---
+    # Save the heavy Label Studio JSON (Points + Image)
+    upload_to_github(
+        f"{st.session_state.folder}/{current_img}_labels.json", 
+        ls_formatted_json, 
+        "Save LS format with Base64"
+    )
+    
+    # Save the lightweight Meta JSON (Stats only)
+    upload_to_github(
+        f"{st.session_state.folder}/{current_img}_meta.json", 
+        meta, 
+        "Save Meta stats"
+    )
 
 if col_prev.button("PREVIOUS", type="secondary", use_container_width=True):
     save_current_work()
