@@ -281,11 +281,11 @@ with st.expander("**📖 Click here for the Project Guide & Instructions**", exp
     You can see your progress at the top of the image. 
     """)
     with st.expander("Visual examples of mussels for clarity"):
-        ann_ex = "example_of_point_annotations.png"
+        ann_ex = "other_images/example_of_point_annotations.png"
         st.image(ann_ex, caption= "Example of annotated mussels")
-        ex_live = "reasonably live.jpg"
+        ex_live = "other_images/reasonably live.jpg"
         st.image(ex_live, caption= "Example of live mussels. \n The two parts of the shell are attached and tentcles are coming out")
-        ex_empty = "empty.jpg"
+        ex_empty = "other_images/empty.jpg"
         st.image(ex_empty, caption= "Example of empty shell. \n The two parts are attached but there is nothing inside. \n Otherwise, if there is only one part of the shell and it is empty.")
     
 st.markdown(f"""
