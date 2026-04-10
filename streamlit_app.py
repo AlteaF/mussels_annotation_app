@@ -186,7 +186,7 @@ if not st.session_state.session_started:
     st.markdown("For Dark Mode, click on the >> on the top left corner")
     st.markdown("The annotation Guidelines will be shown at the top of the page. You can keep the description open or close it by clicking on the >")
     st.markdown("Below, you can find a field in which to write your name. The name will be used to save your annotations and to collect previous ones. If you haven't finished in a previous session, or need to correct something choose \"Continue\".") 
-    st.markdown("If it is your first time annotating but you are offered to continue with the annotations, please refresh the page and use a different name. Please remember if you use Capital letters or lower case ones.")
+    st.markdown("If it is your first time annotating but you are offered to continue with the annotations, please refresh the page and use a different name (or e-mail initials). Please remember if you use Capital letters or lower case ones.")
     st.markdown("""
     Please insert your name followed by an underscore (_) and one of three acronyms: 
     * ***MB*** - for Marine Biologist
