@@ -6,7 +6,7 @@ The application allows users to annotate a set of 13 images with the goal of ass
 
 ## Demo App
 
-[[🦪 Mussel annotation app](https://annotating-mussels-for-altea.streamlit.app)]
+[🦪 Mussel annotation app](https://annotating-mussels-for-altea.streamlit.app)
 
 
 ## Content
