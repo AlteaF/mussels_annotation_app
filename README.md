@@ -1,25 +1,21 @@
-# 📦 Streamlit App Starter Kit 
-```
-⬆️ (Replace above with your app's name)
-```
+# 🦪 Mussel Annotation APP  
 
-Description of the app ...
+This application is part of my Master Thesis at the IT University of Copenhagen. 
+The application allows users to annotate a set of 13 images with the goal of assessing annotator agreement between Marine experts, Computer Vision/Data Science experts and non-experts. 
+
 
 ## Demo App
 
-[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://app-starter-kit.streamlit.app/)
+[![Streamlit App](https://annotating-mussels-for-altea.streamlit.app)](https://annotating-mussels-for-altea.streamlit.app)
 
-## GitHub Codespaces
 
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/streamlit/app-starter-kit?quickstart=1)
+## Content
 
-## Section Heading
+The repo was cloned from [Starter kit](https://github.com/streamlit/app-starter-kit.git), following the documentation. 
+Some of the folders were native of the starter kit, while the Image folder was added to contain all the images to annotate. 
+The app code is in streamlit_app.py, and the requirements in the txt file.
+Additional examples of images are in the other_images folder. 
 
-This is filler text, please replace this with text for this section.
+Code for the point coordinates was sourced from @blackary/Streamlit-Image-Coordinates
 
-## Further Reading
-
-This is filler text, please replace this with a explanatory text about further relevant resources for this repo
-- Resource 1
-- Resource 2
-- Resource 3
+The necessary code was also generated with gemini when necessary for faster implementation and error handling. 
