@@ -274,7 +274,7 @@ with st.expander("**📖 Click here for the Project Guide & Instructions**", exp
     * If you would like to take a :violet-background[break], please click on the "take a break button", so the timer stops.
 
     * If you are :orange[done] with the image, click :orange["Save and next"], and the next image will be shown. 
-    * Remember to click :orange["Save and next"] if you plan on closing the app, otherwise your annotations will be lost!
+    * Remember to click :orange["Save and next"] if you plan on closing the app, otherwise your annotations for the current image will be lost!
     * If you need to look at :blue[previous] images, you can click on the :blue["previous"] button and the previous image will be shown. \n
     
     You can see your progress at the top of the image. 
