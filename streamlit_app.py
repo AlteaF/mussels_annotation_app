@@ -265,6 +265,7 @@ with st.expander("**📖 Click here for the Project Guide & Instructions**", exp
     Your goal is to identify **Live Mussels** in the images, and put a point on each of them.  \n 
     A Live Mussel is defined as a Mussel that has the two parts of the shell that are clearly attached together, possibly with white tentacles coming out of the slightly open shell. 
     A clearly dead mussel would be only one part of the shell, and/or opened and clearly empty.
+    Anything that looks reasonably alive should be considered alive.
     Please refer to the examples if you have doubts.
     * To annotate an image, click in the center the subject (Mussels only).
     * Please click on each mussel you see in the image. Every time you click, it takes a second for the dot to appear. Thank you for your patience.
